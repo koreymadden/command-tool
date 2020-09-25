@@ -16,6 +16,7 @@ async function start() {
     await question().then(async (input) => {
         await decipherInput(input).then(async (results) => {
             if (results[1] === 'build' && results[0] !== null) buildApp(results[0]);
+            if (results[1] === 'release' && results[0] !== null) releaseApp(results[0]);
             return;
         });
     });
@@ -149,6 +150,7 @@ function buildApp(app) {
         try {
             let [hour, minute, second] = getCurrentTime();
             console.log(displayName.blue, 'building in', process.cwd().cyan, 'at', `${hour}:${minute}:${second}`.magenta);
+            // run command
             const data = cp.execSync('cordova run android');
             console.log(data.toString());
             // update time after build is finished
@@ -163,7 +165,7 @@ function buildApp(app) {
                 default:
                     console.error('unknown build finished with no errors'.red);
             }
-            // cant get currentBranch to show both branches properly
+            // can not get currentBranch to show both branches properly
             if (app !== 'both') console.log('current git branch:'.gray, branchName().cyan);
         } catch (error) {
             console.log('error found'.red);
@@ -171,7 +173,7 @@ function buildApp(app) {
         }
     }
 
-    // change back to original directory and ask question again
+    // change back to original directory
     process.chdir(`../../${miraAndEclipse}`);
 
     // build second app if both was chosen by user
@@ -180,6 +182,66 @@ function buildApp(app) {
         startBuild(appBuild[1], 'eclipse');
     }
 
+    // tasks are finished and app should automatically start again
+    start();
+}
+
+function releaseApp(app) {
+    let appBuild = null;
+    if (app === 'mira') {
+        appBuild = mira;
+    } else if (app === 'eclipse') {
+        appBuild = eclipse;
+    } else if (app === 'both') {
+        appBuild = [mira, eclipse];
+    }
+    // change to wanted path
+    if (Array.isArray(appBuild)) {
+        process.chdir(`../${appBuild[0]}/client`);
+        startBuild(appBuild[0], 'mira');
+    } else {
+        process.chdir(`../${appBuild}/client`);
+        startBuild(appBuild)
+    }
+
+    function startBuild(currentApp, displayName = null) {
+        if (displayName === null) displayName = app;
+        try {
+            let [hour, minute, second] = getCurrentTime();
+            console.log(displayName.blue, 'building in', process.cwd().cyan, 'at', `${hour}:${minute}:${second}`.magenta);
+            // run command
+            const data = cp.execSync('cordova run android');
+            console.log(data.toString());
+            // update time after build is finished
+            [hour, minute, second] = getCurrentTime();
+            switch (currentApp) {
+                case mira:
+                    console.log('mira'.blue, 'build finished with no errors'.green, 'at', `${hour}:${minute}:${second}`.magenta);
+                    break;
+                case eclipse:
+                    console.log('eclipse'.blue, 'build finished with no errors'.green, 'at', `${hour}:${minute}:${second}`.magenta);
+                    break;
+                default:
+                    console.error('unknown build finished with no errors'.red);
+            }
+            // can not get currentBranch to show both branches properly
+            if (app !== 'both') console.log('current git branch:'.gray, branchName().cyan);
+        } catch (error) {
+            console.log('error found'.red);
+            // console.log('ERROR: 1', error);
+        }
+    }
+
+    // change back to original directory
+    process.chdir(`../../${miraAndEclipse}`);
+
+    // build second app if both was chosen by user
+    if (Array.isArray(appBuild)) {
+        process.chdir(`../${appBuild[1]}/client`);
+        startBuild(appBuild[1], 'eclipse');
+    }
+
+    // tasks are finished and app should automatically start again
     start();
 }
 
@@ -226,6 +288,7 @@ async function setup() {
         "miraAndEclipse": userSetup.miraAndEclipse
     }, null, '\t'));
     console.log('\nyou have successfully updated your config.json'.green);
+    // when the config.json is update and app restart is required to pull new data
     terminateCli();
 }
 
