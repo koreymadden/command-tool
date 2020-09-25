@@ -147,20 +147,24 @@ function buildApp(app) {
     function startBuild(currentApp, displayName = null) {
         if (displayName === null) displayName = app;
         try {
-            console.log(displayName, 'building in', process.cwd().cyan);
+            let [hour, minute, second] = getCurrentTime();
+            console.log(displayName.blue, 'building in', process.cwd().cyan, 'at', `${hour}:${minute}:${second}`.magenta);
             const data = cp.execSync('cordova run android');
             console.log(data.toString());
+            // update time after build is finished
+            [hour, minute, second] = getCurrentTime();
             switch (currentApp) {
                 case mira:
-                    console.log('mira'.blue, 'build finished with no errors'.green);
+                    console.log('mira'.blue, 'build finished with no errors'.green, 'at', `${hour}:${minute}:${second}`.magenta);
                     break;
                 case eclipse:
-                    console.log('eclipse'.blue, 'build finished with no errors'.green);
+                    console.log('eclipse'.blue, 'build finished with no errors'.green, 'at', `${hour}:${minute}:${second}`.magenta);
                     break;
                 default:
                     console.error('unknown build finished with no errors'.red);
             }
-            console.log('current git branch:'.gray, branchName().cyan);
+            // cant get currentBranch to show both branches properly
+            if (app !== 'both') console.log('current git branch:'.gray, branchName().cyan);
         } catch (error) {
             console.log('error found'.red);
             // console.log('ERROR: 1', error);
@@ -177,6 +181,10 @@ function buildApp(app) {
     }
 
     start();
+}
+
+function getCurrentTime() {
+    return (new Date()).toLocaleTimeString().slice(0, 7).split(":")
 }
 
 function branchName() {
