@@ -1,11 +1,18 @@
-const colors = require('colors');
+require('colors');
 const cp = require('child_process');
-const config = require('./config.json');
-const mira = config.mira;
-const eclipse = config.eclipse;
-const miraAndEclipse = config.miraAndEclipse;
 const fs = require('fs');
 const readline = require('readline');
+let tempConfig = null;
+try {
+    tempConfig = require('./config.json');
+} catch (e) {
+    console.log('e', e)
+    console.log('please configure your config.json file by completing the prompts...\n'.yellow.underline);
+}
+const config = tempConfig;
+const mira = (config) ? config.mira : null;
+const eclipse = (config) ? config.eclipse : null;
+const miraAndEclipse = (config) ? config.miraAndEclipse : null;
 const userSetup = {};
 const interface = readline.createInterface({
     input: process.stdin,
@@ -299,4 +306,8 @@ function terminateCli() {
     }, 5000);
 }
 
-start();
+if (config) {
+    start();
+} else {
+    setup();
+}
