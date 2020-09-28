@@ -150,12 +150,28 @@ async function decipherInput(input) {
             break;
         case 'version':
         case 'v':
+            console.log('app version:', 'v1.0.0'.green);
             console.table({
-                app: "v1.0.0",
+                location: process.cwd(),
                 node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
                 cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
                 ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
             });
+            process.chdir(`../${mira}/client`);
+            console.table({
+                location: process.cwd(),
+                node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
+                cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
+                ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
+            });
+            process.chdir(`../../${eclipse}/client`);
+            console.table({
+                location: process.cwd(),
+                node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
+                cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
+                ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
+            });
+            process.chdir(`../../${miraAndEclipse}`);
             start();
             break;
         case 'close':
