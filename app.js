@@ -21,7 +21,7 @@ const interface = readline.createInterface({
 async function start() {
     await question().then(async (input) => {
         await decipherInput(input).then(async (results) => {
-            if ((results[1] === 'release' || results[1] === 'build') && results[0] !== null) startAppProcess(results[0], results[1]);
+            if ((results[1] === 'release' || results[1] === 'build') && results[0] !== null) processInput(results[0], results[1]);
             return;
         });
     });
@@ -140,6 +140,10 @@ async function decipherInput(input) {
             console.log(process.cwd());
             start();
             break;
+        case 'cmd':
+            console.warn('run commands at your own risk (work in progress)'.red);
+            start();
+            break;
         case 'config':
             console.table(config);
             start();
@@ -180,49 +184,16 @@ async function decipherInput(input) {
     return [app, command]
 }
 
-function startBuild(app, action, currentApp, displayName = null) {
-    if (displayName === null) displayName = app;
-    try {
-        let [hour, minute, second] = getCurrentTime();
-        console.log(displayName.blue, action.cyan, 'in', process.cwd().cyan, 'at', `${hour}:${minute}:${second}`.magenta);
-        // run command
-        let data = null;
-        if (action === 'build') data = cp.execSync('cordova run android');
-        if (action === 'release') data = cp.execSync('cordova build android --release');
-        if (!config.cleanView) console.log(data.toString());
-        // update time after build is finished
-        [hour, minute, second] = getCurrentTime();
-        switch (currentApp) {
-            case mira:
-                console.log('mira'.blue, action.cyan, 'finished with no errors'.green, 'at', `${hour}:${minute}:${second}`.magenta);
-                break;
-            case eclipse:
-                console.log('eclipse'.blue, action.cyan, 'finished with no errors'.green, 'at', `${hour}:${minute}:${second}`.magenta);
-                break;
-            default:
-                console.error(action.cyan, 'unknown finished with no errors'.red);
-        }
-        // can not get currentBranch to show both branches properly
-        if (app !== 'both') console.log('current git branch:'.gray, branchName().cyan);
-    } catch (error) {
-        const shortMessage = (error.message.toLowerCase().indexOf("no emulator images") !== -1)
-            ? '\nplease make sure your mobile device is connected to your computer'.red
-            : ''
-        if (!config.cleanView) console.error(error);
-        console.log('error found'.red, shortMessage);
-    }
-}
-
-function startAppProcess(app, action) {
+function processInput(app, action) {
     const appPath = getAppPath(app);
 
     // change to wanted path
     if (Array.isArray(appPath)) {
         process.chdir(`../${appPath[0]}/client`);
-        startBuild(app, action, appPath[0], 'mira');
+        startAction(app, action, appPath[0], 'mira');
     } else {
         process.chdir(`../${appPath}/client`);
-        startBuild(app, action, appPath)
+        startAction(app, action, appPath)
     }
 
     // change back to original directory
@@ -231,7 +202,7 @@ function startAppProcess(app, action) {
     // build second app if both was chosen by user
     if (Array.isArray(appPath)) {
         process.chdir(`../${appPath[1]}/client`);
-        startBuild(app, action, appPath[1], 'eclipse');
+        startAction(app, action, appPath[1], 'eclipse');
         process.chdir(`../../${miraAndEclipse}`);
     }
 
@@ -239,50 +210,49 @@ function startAppProcess(app, action) {
     start();
 }
 
-function getAppPath(app) {
-    let appPath = null;
-    if (app === 'mira') {
-        appPath = mira;
-    } else if (app === 'eclipse') {
-        appPath = eclipse;
-    } else if (app === 'both') {
-        appPath = [mira, eclipse];
+function startAction(app, action, currentApp, displayName = null) {
+    if (displayName === null) displayName = app;
+    try {
+        const startTime = new Date();
+        const startTimeFormatted = startTime.toLocaleString('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: true
+        });
+        console.log(displayName.blue, action.cyan, 'starting in', process.cwd().cyan, 'at', startTimeFormatted.magenta);
+        // run command
+        let data = null;
+        if (action === 'build') data = cp.execSync('cordova run android');
+        if (action === 'release') data = cp.execSync('cordova build android --release');
+        if (!config.cleanView) console.log(data.toString());
+        // update time after build is finished
+        const finishTime = new Date();
+        const finishTimeFormatted = finishTime.toLocaleString('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: true
+        });
+        switch (currentApp) {
+            case mira:
+                console.log('mira'.blue, action.cyan, 'finished with no errors'.green, 'at', finishTimeFormatted.magenta);
+                break;
+            case eclipse:
+                console.log('eclipse'.blue, action.cyan, 'finished with no errors'.green, 'at', finishTimeFormatted.magenta);
+                break;
+            default:
+                console.error(action.cyan, 'unknown finished with no errors'.red, 'at', finishTimeFormatted.magenta);
+        }
+        // can not get currentBranch to show both branches properly
+        if (app !== 'both') console.log('current git branch:'.gray, getBranchName().cyan);
+    } catch (error) {
+        const shortMessage = (error.message.toLowerCase().indexOf("no emulator images") !== -1) ?
+            '\nplease make sure your mobile device is connected to your computer'.red :
+            ''
+        if (!config.cleanView) console.error(error);
+        console.log('error found'.red, shortMessage);
     }
-    return appPath;
-}
-
-function releaseApp(app) {
-    const appPath = getAppPath(app);
-    
-    // change to wanted path
-    if (Array.isArray(appPath)) {
-        process.chdir(`../${appPath[0]}/client`);
-        startBuild(app, action, appPath[0], 'mira');
-    } else {
-        process.chdir(`../${appPath}/client`);
-        startBuild(app, action, appPath)
-    }
-
-    // change back to original directory
-    process.chdir(`../../${miraAndEclipse}`);
-
-    // build second app if both was chosen by user
-    if (Array.isArray(appPath)) {
-        process.chdir(`../${appPath[1]}/client`);
-        startBuild(app, action, appPath[1], 'eclipse');
-    }
-
-    // tasks are finished and app should automatically start again
-    start();
-}
-
-function getCurrentTime() {
-    return (new Date()).toLocaleTimeString().slice(0, 7).split(":")
-}
-
-function branchName() {
-    const branchName = require('current-git-branch');
-    return branchName();
 }
 
 async function setup() {
@@ -324,6 +294,24 @@ async function setup() {
     terminateCli();
 }
 
+function terminateCli() {
+    // when the config.json is update and app restart is required to pull new data
+    console.log('the app will close now...\nyou will need to start the app again to continue'.red);
+    process.exit(25);
+}
+
+function getAppPath(app) {
+    let appPath = null;
+    if (app === 'mira') {
+        appPath = mira;
+    } else if (app === 'eclipse') {
+        appPath = eclipse;
+    } else if (app === 'both') {
+        appPath = [mira, eclipse];
+    }
+    return appPath;
+}
+
 function getCleanView(setup = false) {
     return new Promise((resolve, reject) => {
         interface.question(`Would you like ${'extra logs'.yellow} ${'to be displayed when using this app?'.blue} ${'(y/n)'.magenta}\n`.blue, userInput => {
@@ -344,14 +332,9 @@ function getCleanView(setup = false) {
     })
 }
 
-function terminateCli() {
-    // when the config.json is update and app restart is required to pull new data
-    console.log('the app will close now...\nyou will need to start the app again to continue'.red);
-    process.exit(25);
+function getBranchName() {
+    const branchName = require('current-git-branch');
+    return branchName();
 }
 
-if (config) {
-    start();
-} else {
-    setup();
-}
+(config) ? start() : setup();
