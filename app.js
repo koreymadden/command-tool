@@ -5,7 +5,7 @@ const readline = require('readline');
 let tempConfig = null;
 try {
     tempConfig = require('./config.json');
-} catch (e) {
+} catch (error) {
     console.log('please configure your config.json file by completing the prompts...\n'.yellow.underline);
 }
 const config = tempConfig;
@@ -97,6 +97,14 @@ async function decipherInput(input) {
                     command: "both | b | m e | e m | mira eclipse | eclipse mira",
                     description: "build out both mira and eclipse"
                 },
+                release: {
+                    command: "release + app",
+                    description: "a modifier that creates a release .apk for desired app"
+                },
+                build: {
+                    command: "build + app",
+                    description: "a modifier that creates a build for the desired app (not necessary)"
+                },
                 config: {
                     command: "config | config.json",
                     description: "display all config.json data"
@@ -104,6 +112,18 @@ async function decipherInput(input) {
                 directory: {
                     command: "cwd",
                     description: "display the current working directory"
+                },
+                close: {
+                    command: "close | exit | stop | kill | end",
+                    description: "these commands will close the app"
+                },
+                setup: {
+                    command: "setup",
+                    description: "will allow you to reconfigure your config.json settings"
+                },
+                clean: {
+                    command: "clean",
+                    description: "updates your cleanView variable in your config.json"
                 },
                 clear: {
                     command: "clear | cls | c",
@@ -120,9 +140,18 @@ async function decipherInput(input) {
             console.table(config);
             start();
             break;
+        case 'close':
+        case 'exit':
+        case 'stop':
+        case 'kill':
+        case 'end':
+            terminateCli();
+            start();
+            break;
         case 'clean':
             await getCleanView();
-            console.log('your cleanView setting has been toggled to:'.green, userSetup.cleanView);
+            console.log('your cleanView setting is now to:'.green, userSetup.cleanView.toString().magenta);
+            terminateCli();
             start();
             break;
         case 'setup':
@@ -130,7 +159,7 @@ async function decipherInput(input) {
             await setup();
             break;
         default:
-            console.error('valid input not detected'.red);
+            console.error(input.cyan, 'is not a valid input'.red);
             start();
             break;
     }
@@ -165,6 +194,7 @@ function startBuild(app, action, currentApp, displayName = null) {
         const shortMessage = (error.message.toLowerCase().indexOf("no emulator images") !== -1)
             ? '\nplease make sure your mobile device is connected to your computer'.red
             : ''
+        if (!config.cleanView) console.error(error);
         console.log('error found'.red, shortMessage);
     }
 }
@@ -188,6 +218,7 @@ function startAppProcess(app, action) {
     if (Array.isArray(appPath)) {
         process.chdir(`../${appPath[1]}/client`);
         startBuild(app, action, appPath[1], 'eclipse');
+        process.chdir(`../../${miraAndEclipse}`);
     }
 
     // tasks are finished and app should automatically start again
@@ -268,7 +299,7 @@ async function setup() {
     await getMiraName();
     await getEclipseName();
     await getMiraEclipseName();
-    await getCleanView();
+    await getCleanView(true);
     fs.writeFileSync('./config.json', JSON.stringify({
         "mira": userSetup.mira,
         "eclipse": userSetup.eclipse,
@@ -276,11 +307,10 @@ async function setup() {
         "cleanView": userSetup.cleanView
     }, null, '\t'));
     console.log('\nyou have successfully updated your config.json'.green);
-    // when the config.json is update and app restart is required to pull new data
     terminateCli();
 }
 
-function getCleanView() {
+function getCleanView(setup = false) {
     return new Promise((resolve, reject) => {
         interface.question(`Would you like ${'extra logs'.yellow} ${'to be displayed when using this app?'.blue} ${'(y/n)'.magenta}\n`.blue, userInput => {
             let input = false;
@@ -288,16 +318,22 @@ function getCleanView() {
                 input = true;
             }
             userSetup.cleanView = input;
+            if (!setup) {
+                fs.readFile('./config.json', function (error, data) {
+                    let json = JSON.parse(data)
+                    json.cleanView = userSetup.cleanView;
+                    fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
+                });
+            }
             resolve();
         })
     })
 }
 
 function terminateCli() {
-    console.log('please restart the app to continue (ctrl + c)'.red);
-    setInterval(function () {
-        console.log('please restart the app to continue (ctrl + c)'.red);
-    }, 5000);
+    // when the config.json is update and app restart is required to pull new data
+    console.log('the app will close now...\nyou will need to start the app again to continue'.red);
+    process.exit(25);
 }
 
 if (config) {
