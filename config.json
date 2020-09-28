@@ -1,5 +1,6 @@
 {
 	"mira": "mira2",
 	"eclipse": "eclipse",
-	"miraAndEclipse": "miraandeclipse"
+	"miraAndEclipse": "miraandeclipse",
+	"cleanView": true
 }
