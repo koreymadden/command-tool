@@ -1,11 +1,17 @@
-const colors = require('colors');
+require('colors');
 const cp = require('child_process');
-const config = require('./config.json');
-const mira = config.mira;
-const eclipse = config.eclipse;
-const miraAndEclipse = config.miraAndEclipse;
 const fs = require('fs');
 const readline = require('readline');
+let tempConfig = null;
+try {
+    tempConfig = require('./config.json');
+} catch (error) {
+    console.log('please configure your config.json file by completing the prompts...\n'.yellow.underline);
+}
+const config = tempConfig;
+const mira = (config) ? config.mira : null;
+const eclipse = (config) ? config.eclipse : null;
+const miraAndEclipse = (config) ? config.miraAndEclipse : null;
 const userSetup = {};
 const interface = readline.createInterface({
     input: process.stdin,
@@ -15,7 +21,7 @@ const interface = readline.createInterface({
 async function start() {
     await question().then(async (input) => {
         await decipherInput(input).then(async (results) => {
-            if (results[1] === 'build' && results[0] !== null) buildApp(results[0]);
+            if ((results[1] === 'release' || results[1] === 'build') && results[0] !== null) processInput(results[0], results[1]);
             return;
         });
     });
@@ -75,6 +81,10 @@ async function decipherInput(input) {
         case 'help':
         case 'h':
             console.table({
+                version: {
+                    command: "version | v",
+                    description: "list of versions used"
+                },
                 help: {
                     command: "help | h",
                     description: "list of all commands available"
@@ -91,6 +101,14 @@ async function decipherInput(input) {
                     command: "both | b | m e | e m | mira eclipse | eclipse mira",
                     description: "build out both mira and eclipse"
                 },
+                release: {
+                    command: "release + app",
+                    description: "a modifier that creates a release .apk for desired app"
+                },
+                build: {
+                    command: "build + app",
+                    description: "a modifier that creates a build for the desired app (not necessary)"
+                },
                 config: {
                     command: "config | config.json",
                     description: "display all config.json data"
@@ -98,6 +116,18 @@ async function decipherInput(input) {
                 directory: {
                     command: "cwd",
                     description: "display the current working directory"
+                },
+                close: {
+                    command: "close | exit | stop | kill | end",
+                    description: "these commands will close the app"
+                },
+                setup: {
+                    command: "setup",
+                    description: "will allow you to reconfigure your config.json settings"
+                },
+                clean: {
+                    command: "clean",
+                    description: "updates your cleanView variable in your config.json"
                 },
                 clear: {
                     command: "clear | cls | c",
@@ -110,8 +140,36 @@ async function decipherInput(input) {
             console.log(process.cwd());
             start();
             break;
+        case 'cmd':
+            console.warn('run commands at your own risk (work in progress)'.red);
+            start();
+            break;
         case 'config':
             console.table(config);
+            start();
+            break;
+        case 'version':
+        case 'v':
+            console.table({
+                app: "v1.0.0",
+                node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
+                cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
+                ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
+            });
+            start();
+            break;
+        case 'close':
+        case 'exit':
+        case 'stop':
+        case 'kill':
+        case 'end':
+            terminateCli();
+            start();
+            break;
+        case 'clean':
+            await getCleanView();
+            console.log('your cleanView setting is now to:'.green, userSetup.cleanView.toString().magenta);
+            terminateCli();
             start();
             break;
         case 'setup':
@@ -119,69 +177,82 @@ async function decipherInput(input) {
             await setup();
             break;
         default:
-            console.error('valid input not detected'.red);
+            console.error(input.cyan, "is not a valid input".red, `\ntype ${'help'.green} ${'to get a list of commands'.cyan}`.cyan);
             start();
             break;
     }
     return [app, command]
 }
 
-function buildApp(app) {
-    let appBuild = null;
-    if (app === 'mira') {
-        appBuild = mira;
-    } else if (app === 'eclipse') {
-        appBuild = eclipse;
-    } else if (app === 'both') {
-        appBuild = [mira, eclipse];
-    }
+function processInput(app, action) {
+    const appPath = getAppPath(app);
+
     // change to wanted path
-    if (Array.isArray(appBuild)) {
-        process.chdir(`../${appBuild[0]}/client`);
-        startBuild(appBuild[0], 'mira');
+    if (Array.isArray(appPath)) {
+        process.chdir(`../${appPath[0]}/client`);
+        startAction(app, action, appPath[0], 'mira');
     } else {
-        process.chdir(`../${appBuild}/client`);
-        startBuild(appBuild)
+        process.chdir(`../${appPath}/client`);
+        startAction(app, action, appPath)
     }
 
-    function startBuild(currentApp, displayName = null) {
-        if (displayName === null) displayName = app;
-        try {
-            console.log(displayName, 'building in', process.cwd().cyan);
-            const data = cp.execSync('cordova run android');
-            console.log(data.toString());
-            switch (currentApp) {
-                case mira:
-                    console.log('mira'.blue, 'build finished with no errors'.green);
-                    break;
-                case eclipse:
-                    console.log('eclipse'.blue, 'build finished with no errors'.green);
-                    break;
-                default:
-                    console.error('unknown build finished with no errors'.red);
-            }
-            console.log('current git branch:'.gray, branchName().cyan);
-        } catch (error) {
-            console.log('error found'.red);
-            // console.log('ERROR: 1', error);
-        }
-    }
-
-    // change back to original directory and ask question again
+    // change back to original directory
     process.chdir(`../../${miraAndEclipse}`);
 
     // build second app if both was chosen by user
-    if (Array.isArray(appBuild)) {
-        process.chdir(`../${appBuild[1]}/client`);
-        startBuild(appBuild[1], 'eclipse');
+    if (Array.isArray(appPath)) {
+        process.chdir(`../${appPath[1]}/client`);
+        startAction(app, action, appPath[1], 'eclipse');
+        process.chdir(`../../${miraAndEclipse}`);
     }
 
+    // tasks are finished and app should automatically start again
     start();
 }
 
-function branchName() {
-    const branchName = require('current-git-branch');
-    return branchName();
+function startAction(app, action, currentApp, displayName = null) {
+    if (displayName === null) displayName = app;
+    try {
+        const startTime = new Date();
+        const startTimeFormatted = startTime.toLocaleString('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: true
+        });
+        console.log(displayName.blue, action.cyan, 'starting in', process.cwd().cyan, 'at', startTimeFormatted.magenta);
+        // run command
+        let data = null;
+        if (action === 'build') data = cp.execSync('cordova run android');
+        if (action === 'release') data = cp.execSync('cordova build android --release');
+        if (!config.cleanView) console.log(data.toString());
+        // update time after build is finished
+        const finishTime = new Date();
+        const finishTimeFormatted = finishTime.toLocaleString('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: true
+        });
+        switch (currentApp) {
+            case mira:
+                console.log('mira'.blue, action.cyan, 'finished with no errors'.green, 'at', finishTimeFormatted.magenta);
+                break;
+            case eclipse:
+                console.log('eclipse'.blue, action.cyan, 'finished with no errors'.green, 'at', finishTimeFormatted.magenta);
+                break;
+            default:
+                console.error(action.cyan, 'unknown finished with no errors'.red, 'at', finishTimeFormatted.magenta);
+        }
+        // can not get currentBranch to show both branches properly
+        if (app !== 'both') console.log('current git branch:'.gray, getBranchName().cyan);
+    } catch (error) {
+        const shortMessage = (error.message.toLowerCase().indexOf("no emulator images") !== -1) ?
+            '\nplease make sure your mobile device is connected to your computer'.red :
+            ''
+        if (!config.cleanView) console.error(error);
+        console.log('error found'.red, shortMessage);
+    }
 }
 
 async function setup() {
@@ -212,20 +283,58 @@ async function setup() {
     await getMiraName();
     await getEclipseName();
     await getMiraEclipseName();
+    await getCleanView(true);
     fs.writeFileSync('./config.json', JSON.stringify({
         "mira": userSetup.mira,
         "eclipse": userSetup.eclipse,
-        "miraAndEclipse": userSetup.miraAndEclipse
+        "miraAndEclipse": userSetup.miraAndEclipse,
+        "cleanView": userSetup.cleanView
     }, null, '\t'));
     console.log('\nyou have successfully updated your config.json'.green);
     terminateCli();
 }
 
 function terminateCli() {
-    console.log('please restart the app to continue (ctrl + c)'.red);
-    setInterval(function () {
-        console.log('please restart the app to continue (ctrl + c)'.red);
-    }, 5000);
+    // when the config.json is update and app restart is required to pull new data
+    console.log('the app will close now...\nyou will need to start the app again to continue'.red);
+    process.exit(25);
 }
 
-start();
+function getAppPath(app) {
+    let appPath = null;
+    if (app === 'mira') {
+        appPath = mira;
+    } else if (app === 'eclipse') {
+        appPath = eclipse;
+    } else if (app === 'both') {
+        appPath = [mira, eclipse];
+    }
+    return appPath;
+}
+
+function getCleanView(setup = false) {
+    return new Promise((resolve, reject) => {
+        interface.question(`Would you like ${'extra logs'.yellow} ${'to be displayed when using this app?'.blue} ${'(y/n)'.magenta}\n`.blue, userInput => {
+            let input = false;
+            if (userInput.toLowerCase() === 'n' || userInput.toLowerCase() === 'no') {
+                input = true;
+            }
+            userSetup.cleanView = input;
+            if (!setup) {
+                fs.readFile('./config.json', function (error, data) {
+                    let json = JSON.parse(data)
+                    json.cleanView = userSetup.cleanView;
+                    fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
+                });
+            }
+            resolve();
+        })
+    })
+}
+
+function getBranchName() {
+    const branchName = require('current-git-branch');
+    return branchName();
+}
+
+(config) ? start() : setup();
