@@ -120,6 +120,11 @@ async function decipherInput(input) {
             console.table(config);
             start();
             break;
+        case 'clean':
+            await getCleanView();
+            console.log('your cleanView setting has been toggled to:'.green, userSetup.cleanView);
+            start();
+            break;
         case 'setup':
             console.log('start setup...');
             await setup();
@@ -260,18 +265,6 @@ async function setup() {
             })
         })
     }
-    const getCleanView = () => {
-        return new Promise((resolve, reject) => {
-            interface.question(`Would you like extra log information to be displayed when app is in use? (y/n)\n`, userInput => {
-                let input = false;
-                if (userInput.toLowerCase() === 'n') {
-                    input = true;
-                }
-                userSetup.cleanView = input;
-                resolve();
-            })
-        })
-    }
     await getMiraName();
     await getEclipseName();
     await getMiraEclipseName();
@@ -285,6 +278,19 @@ async function setup() {
     console.log('\nyou have successfully updated your config.json'.green);
     // when the config.json is update and app restart is required to pull new data
     terminateCli();
+}
+
+function getCleanView() {
+    return new Promise((resolve, reject) => {
+        interface.question(`Would you like ${'extra logs'.yellow} ${'to be displayed when using this app?'.blue} ${'(y/n)'.magenta}\n`.blue, userInput => {
+            let input = false;
+            if (userInput.toLowerCase() === 'n' || userInput.toLowerCase() === 'no') {
+                input = true;
+            }
+            userSetup.cleanView = input;
+            resolve();
+        })
+    })
 }
 
 function terminateCli() {
