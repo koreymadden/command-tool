@@ -173,7 +173,7 @@ async function decipherInput(input) {
             await setup();
             break;
         default:
-            console.error(input.cyan, 'is not a valid input'.red);
+            console.error(input.cyan, "is not a valid input".red, `\ntype ${'help'.green} ${'to get a list of commands'.cyan}`.cyan);
             start();
             break;
     }
