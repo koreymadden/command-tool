@@ -81,6 +81,10 @@ async function decipherInput(input) {
         case 'help':
         case 'h':
             console.table({
+                version: {
+                    command: "version | v",
+                    description: "list of versions used"
+                },
                 help: {
                     command: "help | h",
                     description: "list of all commands available"
@@ -138,6 +142,16 @@ async function decipherInput(input) {
             break;
         case 'config':
             console.table(config);
+            start();
+            break;
+        case 'version':
+        case 'v':
+            console.table({
+                app: "v1.0.0",
+                node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
+                cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
+                ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
+            });
             start();
             break;
         case 'close':
