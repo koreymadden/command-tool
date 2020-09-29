@@ -113,6 +113,10 @@ async function decipherInput(input) {
                     command: "config | config.json",
                     description: "display all config.json data"
                 },
+                cmd: {
+                    command: "cmd",
+                    description: "run command prompt commands within the app"
+                },
                 directory: {
                     command: "cwd",
                     description: "display the current working directory"
@@ -126,7 +130,7 @@ async function decipherInput(input) {
                     description: "will allow you to reconfigure your config.json settings"
                 },
                 clean: {
-                    command: "clean",
+                    command: "clean | cleanview | clean view",
                     description: "updates your cleanView variable in your config.json"
                 },
                 clear: {
@@ -184,6 +188,8 @@ async function decipherInput(input) {
             start();
             break;
         case 'clean':
+        case 'cleanview':
+        case 'clean view':
             await getCleanView();
             console.log('your cleanView setting is now to:'.green, userSetup.cleanView.toString().magenta);
             terminateCli();
@@ -368,18 +374,18 @@ function getCleanView(setup = false) {
     return new Promise((resolve, reject) => {
         interface.question(`Would you like ${'extra logs'.yellow} ${'to be displayed when using this app?'.blue} ${'(y/n)'.magenta}\n`.blue, userInput => {
             let input = false;
-            if (userInput.toLowerCase() === 'n' || userInput.toLowerCase() === 'no') {
-                input = true;
-            }
+            if (userInput.toLowerCase() === 'n' || userInput.toLowerCase() === 'no') input = true;
             userSetup.cleanView = input;
             if (!setup) {
                 fs.readFile('./config.json', function (error, data) {
                     let json = JSON.parse(data)
                     json.cleanView = userSetup.cleanView;
                     fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
+                    resolve();
                 });
+            } else {
+                resolve();
             }
-            resolve();
         })
     })
 }
