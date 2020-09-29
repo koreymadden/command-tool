@@ -113,6 +113,10 @@ async function decipherInput(input) {
                     command: "config | config.json",
                     description: "display all config.json data"
                 },
+                cmd: {
+                    command: "cmd",
+                    description: "run command prompt commands within the app"
+                },
                 directory: {
                     command: "cwd",
                     description: "display the current working directory"
@@ -126,7 +130,7 @@ async function decipherInput(input) {
                     description: "will allow you to reconfigure your config.json settings"
                 },
                 clean: {
-                    command: "clean",
+                    command: "clean | cleanview | clean view",
                     description: "updates your cleanView variable in your config.json"
                 },
                 clear: {
@@ -141,7 +145,8 @@ async function decipherInput(input) {
             start();
             break;
         case 'cmd':
-            console.warn('run commands at your own risk (work in progress)'.red);
+            console.warn('run commands at your own risk'.red);
+            getCmd();
             start();
             break;
         case 'config':
@@ -150,12 +155,28 @@ async function decipherInput(input) {
             break;
         case 'version':
         case 'v':
+            console.log('app version:', 'v1.0.0'.green);
             console.table({
-                app: "v1.0.0",
+                location: process.cwd(),
                 node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
                 cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
                 ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
             });
+            process.chdir(`../${mira}/client`);
+            console.table({
+                location: process.cwd(),
+                node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
+                cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
+                ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
+            });
+            process.chdir(`../../${eclipse}/client`);
+            console.table({
+                location: process.cwd(),
+                node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
+                cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
+                ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
+            });
+            process.chdir(`../../${miraAndEclipse}`);
             start();
             break;
         case 'close':
@@ -167,6 +188,8 @@ async function decipherInput(input) {
             start();
             break;
         case 'clean':
+        case 'cleanview':
+        case 'clean view':
             await getCleanView();
             console.log('your cleanView setting is now to:'.green, userSetup.cleanView.toString().magenta);
             terminateCli();
@@ -300,6 +323,41 @@ function terminateCli() {
     process.exit(25);
 }
 
+function getCmd() {
+    return new Promise((resolve, reject) => {
+        interface.question(`What would you like to run in the command prompt?\n`.magenta.underline, userInput => {
+            const input = userInput.toLowerCase();
+            if (input === 'exit' || input === 'stop' || input === 'quit') {
+                console.log('exiting')
+                start();
+                return;
+            } else if (input === 'cwd') {
+                console.log(process.cwd());
+                getCmd();
+                return;
+            } else if (input === 'clear' || input === 'cls' || input === 'c') {
+                console.clear();
+                getCmd();
+                return;
+            } else if (input === 'help' || input === 'h') {
+                console.table({
+                    exit: 'exit | stop | quit'
+                });
+                getCmd();
+                return;
+            }
+            try {
+                const data = cp.execSync(input).toString();
+                console.log(data);
+            } catch (error) {
+                if (!config.cleanView) console.error(error);
+                console.error('error found'.red);
+            }
+            getCmd();
+        })
+    })
+}
+
 function getAppPath(app) {
     let appPath = null;
     if (app === 'mira') {
@@ -316,18 +374,18 @@ function getCleanView(setup = false) {
     return new Promise((resolve, reject) => {
         interface.question(`Would you like ${'extra logs'.yellow} ${'to be displayed when using this app?'.blue} ${'(y/n)'.magenta}\n`.blue, userInput => {
             let input = false;
-            if (userInput.toLowerCase() === 'n' || userInput.toLowerCase() === 'no') {
-                input = true;
-            }
+            if (userInput.toLowerCase() === 'n' || userInput.toLowerCase() === 'no') input = true;
             userSetup.cleanView = input;
             if (!setup) {
                 fs.readFile('./config.json', function (error, data) {
                     let json = JSON.parse(data)
                     json.cleanView = userSetup.cleanView;
                     fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
+                    resolve();
                 });
+            } else {
+                resolve();
             }
-            resolve();
         })
     })
 }
