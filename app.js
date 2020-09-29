@@ -141,7 +141,8 @@ async function decipherInput(input) {
             start();
             break;
         case 'cmd':
-            console.warn('run commands at your own risk (work in progress)'.red);
+            console.warn('run commands at your own risk'.red);
+            getCmd();
             start();
             break;
         case 'config':
@@ -314,6 +315,41 @@ function terminateCli() {
     // when the config.json is update and app restart is required to pull new data
     console.log('the app will close now...\nyou will need to start the app again to continue'.red);
     process.exit(25);
+}
+
+function getCmd() {
+    return new Promise((resolve, reject) => {
+        interface.question(`What would you like to run in the command prompt?\n`.magenta.underline, userInput => {
+            const input = userInput.toLowerCase();
+            if (input === 'exit' || input === 'stop' || input === 'quit') {
+                console.log('exiting')
+                start();
+                return;
+            } else if (input === 'cwd') {
+                console.log(process.cwd());
+                getCmd();
+                return;
+            } else if (input === 'clear' || input === 'cls' || input === 'c') {
+                console.clear();
+                getCmd();
+                return;
+            } else if (input === 'help' || input === 'h') {
+                console.table({
+                    exit: 'exit | stop | quit'
+                });
+                getCmd();
+                return;
+            }
+            try {
+                const data = cp.execSync(input).toString();
+                console.log(data);
+            } catch (error) {
+                if (!config.cleanView) console.error(error);
+                console.error('error found'.red);
+            }
+            getCmd();
+        })
+    })
 }
 
 function getAppPath(app) {
