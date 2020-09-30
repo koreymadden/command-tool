@@ -2,6 +2,8 @@ require('colors');
 const cp = require('child_process');
 const fs = require('fs');
 const readline = require('readline');
+const loadingSpinner = require('loading-spinner');
+loadingSpinner.setSequence(['     ','.    ','. .  ','. . .'],);
 let tempConfig = null;
 try {
     tempConfig = require('./config.json');
@@ -246,8 +248,10 @@ function startAction(app, action, currentApp, displayName = null) {
         console.log(displayName.blue, action.cyan, 'starting in', process.cwd().cyan, 'at', startTimeFormatted.magenta);
         // run command
         let data = null;
+        startSpinner('please wait');
         if (action === 'build') data = cp.execSync('cordova run android');
         if (action === 'release') data = cp.execSync('cordova build android --release');
+        endSpinner();
         if (!config.cleanView) console.log(data.toString());
         // update time after build is finished
         const finishTime = new Date();
@@ -322,6 +326,20 @@ function terminateCli() {
     console.log('the app will close now...\nyou will need to start the app again to continue'.red);
     process.exit(25);
 }
+
+function endSpinner(message) {
+  loadingSpinner.stop();
+  if (message) console.log('\n' + message);
+  if (!message) console.log('\n');
+};
+
+function startSpinner(message = 'no message', interval = 500) {
+  if (message) process.stdout.write(message + ' ');
+  loadingSpinner.start(interval, {
+    clearChar: true,
+    clearLine: true
+  });
+};
 
 function getCmd() {
     return new Promise((resolve, reject) => {
