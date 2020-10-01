@@ -21,7 +21,7 @@ const interface = readline.createInterface({
 async function start() {
     await question().then(async (input) => {
         await decipherInput(input).then(async (results) => {
-            if ((results[1] === 'release' || results[1] === 'build') && results[0] !== null) processInput(results[0], results[1]);
+            if ((results[1] === 'release' || results[1] === 'serve' || results[1] === 'build') && results[0] !== null) processInput(results[0], results[1]);
             return;
         });
     });
@@ -42,9 +42,13 @@ async function decipherInput(input) {
     let app = null;
     input = input.replace(/\s/g, '');
     input = input.replace(' and ', '');
+    // remove any modifier and update the command variable with it
     if (input.indexOf('release') !== -1) {
         command = 'release'
         input = input.replace('release', '');
+    } else if (input.indexOf('serve') !== -1) {
+        command = 'serve'
+        input = input.replace('serve', '');
     } else if (input.indexOf('build') !== -1) {
         command = 'build'
         input = input.replace('build', '');
@@ -104,6 +108,10 @@ async function decipherInput(input) {
                 release: {
                     command: "release + app",
                     description: "a modifier that creates a release .apk for desired app"
+                },
+                serve: {
+                    command: "serve + app",
+                    description: "a modifier that serves the app to the browser"
                 },
                 build: {
                     command: "build + app",
@@ -207,16 +215,16 @@ async function decipherInput(input) {
     return [app, command]
 }
 
-function processInput(app, action) {
+async function processInput(app, action) {
     const appPath = getAppPath(app);
 
     // change to wanted path
     if (Array.isArray(appPath)) {
         process.chdir(`../${appPath[0]}/client`);
-        startAction(app, action, appPath[0], 'mira');
+        await startAction(app, action, appPath[0], 'mira');
     } else {
         process.chdir(`../${appPath}/client`);
-        startAction(app, action, appPath)
+        await startAction(app, action, appPath)
     }
 
     // change back to original directory
@@ -225,7 +233,7 @@ function processInput(app, action) {
     // build second app if both was chosen by user
     if (Array.isArray(appPath)) {
         process.chdir(`../${appPath[1]}/client`);
-        startAction(app, action, appPath[1], 'eclipse');
+        await startAction(app, action, appPath[1], 'eclipse');
         process.chdir(`../../${miraAndEclipse}`);
     }
 
@@ -233,7 +241,7 @@ function processInput(app, action) {
     start();
 }
 
-function startAction(app, action, currentApp, displayName = null) {
+async function startAction(app, action, currentApp, displayName = null) {
     if (displayName === null) displayName = app;
     try {
         const startTime = new Date();
@@ -248,6 +256,22 @@ function startAction(app, action, currentApp, displayName = null) {
         let data = null;
         if (action === 'build') data = cp.execSync('cordova run android');
         if (action === 'release') data = cp.execSync('cordova build android --release');
+        if (action === 'serve') {
+            let appVariables = fs.readFileSync('./www/appVariables.js').toString();
+            if (appVariables.indexOf('configBuildMode = false') !== -1) {
+                console.warn('configBuildMode is set to:'.yellow, false.toString().red, '\nyou will probably want to change this setting...'.cyan);
+                let newAppVariables = appVariables.replace('configBuildMode = false', 'configBuildMode = true');
+                const decision = await prompt(`${'Would you like to update the'.magenta} ${'configBuildMode'.red} ${'variable to'.magenta} ${'true'.yellow} ${'(y/n)'.red}${'?\n'.magenta}`);
+                if (decision) {
+                    fs.writeFileSync('./www/appVariables.js', newAppVariables);
+                    console.log('appVariables.js configBuildMode variable updated'.green);
+                } else {
+                    console.log('appVariables.js configBuildMode variable not updated'.red);
+                }
+            }
+            console.log('you will need to close your terminal or open a new one to gain access to the app again'.yellow);
+            data = cp.execSync('ionic serve');
+        }
         if (!config.cleanView) console.log(data.toString());
         // update time after build is finished
         const finishTime = new Date();
@@ -276,6 +300,20 @@ function startAction(app, action, currentApp, displayName = null) {
         if (!config.cleanView) console.error(error);
         console.log('error found'.red, shortMessage);
     }
+}
+
+async function prompt(message) {
+    const question = await new Promise((resolve, reject) => {
+        interface.question(message, (userInput) => {
+            const input = userInput.toLowerCase();
+            let answer = false;
+            if (input === 'y' || input === 'yes') {
+                answer = true
+            }
+            resolve(answer)
+        })
+    })
+    return question;
 }
 
 async function setup() {
