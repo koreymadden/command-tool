@@ -164,7 +164,7 @@ async function decipherInput(input) {
             break;
         case 'version':
         case 'v':
-            console.log('app version:', 'v1.0.0'.green);
+            console.log('app version:', 'v1.0.1'.green);
             console.table({
                 location: process.cwd(),
                 node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
