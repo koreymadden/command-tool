@@ -2,6 +2,7 @@ require('colors');
 const cp = require('child_process');
 const fs = require('fs');
 const readline = require('readline');
+const path = require('path');
 let tempConfig = null;
 try {
     tempConfig = require('./config.json');
@@ -293,7 +294,7 @@ async function startAction(app, action, currentApp, displayName = null) {
         }
         const gitBranchArray = cp.execSync('git branch').toString().replace(/\n/g, ' ').split(' ').filter(string => string !== '');
         const activeBranchIndex = gitBranchArray.indexOf('*') + 1;
-        console.log('branch built out on:'.gray, gitBranchArray[activeBranchIndex].cyan)
+        console.log('branch used:'.gray, gitBranchArray[activeBranchIndex].cyan)
     } catch (error) {
         const shortMessage = (error.message.toLowerCase().indexOf("no emulator images") !== -1) ?
             '\nplease make sure your mobile device is connected to your computer'.red :
@@ -347,6 +348,7 @@ async function setup() {
     await getMiraEclipseName();
     await getCleanView(true);
     fs.writeFileSync('./config.json', JSON.stringify({
+        "appLocation": path.basename(process.cwd()),
         "mira": userSetup.mira,
         "eclipse": userSetup.eclipse,
         "miraAndEclipse": userSetup.miraAndEclipse,
@@ -416,7 +418,9 @@ function getCleanView(setup = false) {
             if (userInput.toLowerCase() === 'n' || userInput.toLowerCase() === 'no') input = true;
             userSetup.cleanView = input;
             if (!setup) {
+                if (path.basename(process.cwd()) !== config.appLocation) process.chdir(`../${config.appLocation}`);
                 fs.readFile('./config.json', function (error, data) {
+                    console.log('cwd', process.cwd())
                     let json = JSON.parse(data)
                     json.cleanView = userSetup.cleanView;
                     fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
