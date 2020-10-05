@@ -291,8 +291,9 @@ async function startAction(app, action, currentApp, displayName = null) {
             default:
                 console.error(action.cyan, 'unknown finished with no errors'.red, 'at', finishTimeFormatted.magenta);
         }
-        // can not get currentBranch to show both branches properly
-        if (app !== 'both') console.log('current git branch:'.gray, getBranchName().cyan);
+        const gitBranchArray = cp.execSync('git branch').toString().replace(/\n/g, ' ').split(' ').filter(string => string !== '');
+        const activeBranchIndex = gitBranchArray.indexOf('*') + 1;
+        console.log('branch built out on:'.gray, gitBranchArray[activeBranchIndex].cyan)
     } catch (error) {
         const shortMessage = (error.message.toLowerCase().indexOf("no emulator images") !== -1) ?
             '\nplease make sure your mobile device is connected to your computer'.red :
@@ -426,11 +427,6 @@ function getCleanView(setup = false) {
             }
         })
     })
-}
-
-function getBranchName() {
-    const branchName = require('current-git-branch');
-    return branchName();
 }
 
 (config) ? start() : setup();
