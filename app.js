@@ -131,7 +131,7 @@ async function decipherInput(input) {
                     description: "display the current working directory"
                 },
                 close: {
-                    command: "close | exit | stop | kill | end",
+                    command: "close | exit | stop | kill | end | quit",
                     description: "these commands will close the app"
                 },
                 setup: {
@@ -192,6 +192,7 @@ async function decipherInput(input) {
         case 'exit':
         case 'stop':
         case 'kill':
+        case 'quit':
         case 'end':
             terminateCli();
             start();
@@ -381,7 +382,7 @@ function getCmd() {
     return new Promise((resolve, reject) => {
         interface.question(`What would you like to run in the command prompt?\n`.magenta.underline, userInput => {
             const input = userInput.toLowerCase();
-            if (input === 'exit' || input === 'stop' || input === 'quit') {
+            if (input === 'exit' || input === 'stop' || input === 'quit' || input === 'close' || input === 'kill' || input === 'end') {
                 console.log('exiting')
                 start();
                 return;
