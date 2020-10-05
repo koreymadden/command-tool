@@ -256,7 +256,20 @@ async function startAction(app, action, currentApp, displayName = null) {
         // run command
         let data = null;
         if (action === 'build') data = cp.execSync('cordova run android');
-        if (action === 'release') data = cp.execSync('cordova build android --release');
+        if (action === 'release') {
+            data = cp.execSync('cordova build android --release');
+            const dataArray = data.toString().replace(/\r/g, '').replace(/\n/g, '').split('\t').filter(string => string !== '')
+            let apkPath = undefined;
+            dataArray.forEach(string => {
+                if (string.indexOf('app-release.apk') !== -1) apkPath = string.replace('\\app-release.apk', '');
+            });
+            if (apkPath) {
+                console.log('apk path:'.gray, apkPath.cyan)
+                cp.exec(`explorer ${apkPath}`);
+            } else {
+                console.log('apk path not found'.red)
+            }
+        }
         if (action === 'serve') {
             let appVariables = fs.readFileSync('./www/appVariables.js').toString();
             if (appVariables.indexOf('configBuildMode = false') !== -1) {
