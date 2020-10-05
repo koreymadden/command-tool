@@ -2,6 +2,7 @@ require('colors');
 const cp = require('child_process');
 const fs = require('fs');
 const readline = require('readline');
+const path = require('path');
 let tempConfig = null;
 try {
     tempConfig = require('./config.json');
@@ -21,7 +22,7 @@ const interface = readline.createInterface({
 async function start() {
     await question().then(async (input) => {
         await decipherInput(input).then(async (results) => {
-            if ((results[1] === 'release' || results[1] === 'build') && results[0] !== null) processInput(results[0], results[1]);
+            if ((results[1] === 'release' || results[1] === 'serve' || results[1] === 'build') && results[0] !== null) processInput(results[0], results[1]);
             return;
         });
     });
@@ -42,9 +43,13 @@ async function decipherInput(input) {
     let app = null;
     input = input.replace(/\s/g, '');
     input = input.replace(' and ', '');
+    // remove any modifier and update the command variable with it
     if (input.indexOf('release') !== -1) {
         command = 'release'
         input = input.replace('release', '');
+    } else if (input.indexOf('serve') !== -1) {
+        command = 'serve'
+        input = input.replace('serve', '');
     } else if (input.indexOf('build') !== -1) {
         command = 'build'
         input = input.replace('build', '');
@@ -105,6 +110,10 @@ async function decipherInput(input) {
                     command: "release + app",
                     description: "a modifier that creates a release .apk for desired app"
                 },
+                serve: {
+                    command: "serve + app",
+                    description: "a modifier that serves the app to the browser"
+                },
                 build: {
                     command: "build + app",
                     description: "a modifier that creates a build for the desired app (not necessary)"
@@ -122,7 +131,7 @@ async function decipherInput(input) {
                     description: "display the current working directory"
                 },
                 close: {
-                    command: "close | exit | stop | kill | end",
+                    command: "close | exit | stop | kill | end | quit",
                     description: "these commands will close the app"
                 },
                 setup: {
@@ -155,7 +164,7 @@ async function decipherInput(input) {
             break;
         case 'version':
         case 'v':
-            console.log('app version:', 'v1.0.0'.green);
+            console.log('app version:', 'v1.0.1'.green);
             console.table({
                 location: process.cwd(),
                 node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
@@ -183,6 +192,7 @@ async function decipherInput(input) {
         case 'exit':
         case 'stop':
         case 'kill':
+        case 'quit':
         case 'end':
             terminateCli();
             start();
@@ -207,16 +217,16 @@ async function decipherInput(input) {
     return [app, command]
 }
 
-function processInput(app, action) {
+async function processInput(app, action) {
     const appPath = getAppPath(app);
 
     // change to wanted path
     if (Array.isArray(appPath)) {
         process.chdir(`../${appPath[0]}/client`);
-        startAction(app, action, appPath[0], 'mira');
+        await startAction(app, action, appPath[0], 'mira');
     } else {
         process.chdir(`../${appPath}/client`);
-        startAction(app, action, appPath)
+        await startAction(app, action, appPath)
     }
 
     // change back to original directory
@@ -225,7 +235,7 @@ function processInput(app, action) {
     // build second app if both was chosen by user
     if (Array.isArray(appPath)) {
         process.chdir(`../${appPath[1]}/client`);
-        startAction(app, action, appPath[1], 'eclipse');
+        await startAction(app, action, appPath[1], 'eclipse');
         process.chdir(`../../${miraAndEclipse}`);
     }
 
@@ -233,7 +243,7 @@ function processInput(app, action) {
     start();
 }
 
-function startAction(app, action, currentApp, displayName = null) {
+async function startAction(app, action, currentApp, displayName = null) {
     if (displayName === null) displayName = app;
     try {
         const startTime = new Date();
@@ -247,7 +257,36 @@ function startAction(app, action, currentApp, displayName = null) {
         // run command
         let data = null;
         if (action === 'build') data = cp.execSync('cordova run android');
-        if (action === 'release') data = cp.execSync('cordova build android --release');
+        if (action === 'release') {
+            data = cp.execSync('cordova build android --release');
+            const dataArray = data.toString().replace(/\r/g, '').replace(/\n/g, '').split('\t').filter(string => string !== '')
+            let apkPath = undefined;
+            dataArray.forEach(string => {
+                if (string.indexOf('app-release.apk') !== -1) apkPath = string.replace('\\app-release.apk', '');
+            });
+            if (apkPath) {
+                console.log('apk path:'.gray, apkPath.cyan)
+                cp.exec(`explorer ${apkPath}`);
+            } else {
+                console.log('apk path not found'.red)
+            }
+        }
+        if (action === 'serve') {
+            let appVariables = fs.readFileSync('./www/appVariables.js').toString();
+            if (appVariables.indexOf('configBuildMode = false') !== -1) {
+                console.warn('configBuildMode is set to:'.yellow, false.toString().red, '\nyou will probably want to change this setting...'.cyan);
+                let newAppVariables = appVariables.replace('configBuildMode = false', 'configBuildMode = true');
+                const decision = await prompt(`${'Would you like to update the'.magenta} ${'configBuildMode'.red} ${'variable to'.magenta} ${'true'.yellow} ${'(y/n)'.red}${'?\n'.magenta}`);
+                if (decision) {
+                    fs.writeFileSync('./www/appVariables.js', newAppVariables);
+                    console.log('appVariables.js configBuildMode variable updated'.green);
+                } else {
+                    console.log('appVariables.js configBuildMode variable not updated'.red);
+                }
+            }
+            console.log('you will need to close your terminal or open a new one to gain access to the app again'.yellow);
+            data = cp.execSync('ionic serve');
+        }
         if (!config.cleanView) console.log(data.toString());
         // update time after build is finished
         const finishTime = new Date();
@@ -267,8 +306,9 @@ function startAction(app, action, currentApp, displayName = null) {
             default:
                 console.error(action.cyan, 'unknown finished with no errors'.red, 'at', finishTimeFormatted.magenta);
         }
-        // can not get currentBranch to show both branches properly
-        if (app !== 'both') console.log('current git branch:'.gray, getBranchName().cyan);
+        const gitBranchArray = cp.execSync('git branch').toString().replace(/\n/g, ' ').split(' ').filter(string => string !== '');
+        const activeBranchIndex = gitBranchArray.indexOf('*') + 1;
+        console.log('branch used:'.gray, gitBranchArray[activeBranchIndex].cyan)
     } catch (error) {
         const shortMessage = (error.message.toLowerCase().indexOf("no emulator images") !== -1) ?
             '\nplease make sure your mobile device is connected to your computer'.red :
@@ -276,6 +316,20 @@ function startAction(app, action, currentApp, displayName = null) {
         if (!config.cleanView) console.error(error);
         console.log('error found'.red, shortMessage);
     }
+}
+
+async function prompt(message) {
+    const question = await new Promise((resolve, reject) => {
+        interface.question(message, (userInput) => {
+            const input = userInput.toLowerCase();
+            let answer = false;
+            if (input === 'y' || input === 'yes') {
+                answer = true
+            }
+            resolve(answer)
+        })
+    })
+    return question;
 }
 
 async function setup() {
@@ -308,6 +362,7 @@ async function setup() {
     await getMiraEclipseName();
     await getCleanView(true);
     fs.writeFileSync('./config.json', JSON.stringify({
+        "appLocation": path.basename(process.cwd()),
         "mira": userSetup.mira,
         "eclipse": userSetup.eclipse,
         "miraAndEclipse": userSetup.miraAndEclipse,
@@ -327,7 +382,7 @@ function getCmd() {
     return new Promise((resolve, reject) => {
         interface.question(`What would you like to run in the command prompt?\n`.magenta.underline, userInput => {
             const input = userInput.toLowerCase();
-            if (input === 'exit' || input === 'stop' || input === 'quit') {
+            if (input === 'exit' || input === 'stop' || input === 'quit' || input === 'close' || input === 'kill' || input === 'end') {
                 console.log('exiting')
                 start();
                 return;
@@ -377,7 +432,9 @@ function getCleanView(setup = false) {
             if (userInput.toLowerCase() === 'n' || userInput.toLowerCase() === 'no') input = true;
             userSetup.cleanView = input;
             if (!setup) {
+                if (path.basename(process.cwd()) !== config.appLocation) process.chdir(`../${config.appLocation}`);
                 fs.readFile('./config.json', function (error, data) {
+                    console.log('cwd', process.cwd())
                     let json = JSON.parse(data)
                     json.cleanView = userSetup.cleanView;
                     fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
@@ -388,11 +445,6 @@ function getCleanView(setup = false) {
             }
         })
     })
-}
-
-function getBranchName() {
-    const branchName = require('current-git-branch');
-    return branchName();
 }
 
 (config) ? start() : setup();
