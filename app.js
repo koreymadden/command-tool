@@ -258,6 +258,12 @@ async function startAction(app, action, currentApp, displayName = null) {
         let data = null;
         if (action === 'build') data = cp.execSync('cordova run android');
         if (action === 'release') {
+            const appVariables = fs.readFileSync('./www/appVariables.js').toString();
+            if (appVariables.indexOf('production = false') !== -1) {
+                console.warn('production is set to:'.yellow, 'false'.red);
+            } else if (appVariables.indexOf('production = true') !== -1) {
+                console.warn('production is set to:'.yellow, 'true'.red);
+            }
             data = cp.execSync('cordova build android --release');
             const dataArray = data.toString().replace(/\r/g, '').replace(/\n/g, '').split('\t').filter(string => string !== '')
             let apkPath = undefined;
