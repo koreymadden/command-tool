@@ -10,6 +10,7 @@ try {
     console.log('please configure your config.json file by completing the prompts...\n'.yellow.underline);
 }
 const config = tempConfig;
+const appLocation = (config) ? config.appLocation : null;
 const mira = (config) ? config.mira : null;
 const eclipse = (config) ? config.eclipse : null;
 const miraAndEclipse = (config) ? config.miraAndEclipse : null;
@@ -172,6 +173,15 @@ async function decipherInput(input) {
             break;
         case 'config':
             console.table(config);
+            let cwd = process.cwd()
+            let curDir = process.cwd().split('\\').slice(-1)[0];
+            if (curDir === miraAndEclipse && miraAndEclipse !== appLocation) {
+                process.chdir(`../${appLocation}`);
+            } else if (curDir === 'client') {
+                process.chdir(`../../${appLocation}`);
+            }
+            cp.exec(`explorer ${cwd}`)
+            if (appLocation !== miraAndEclipse) process.chdir(`../${miraAndEclipse}`);
             start();
             break;
         case 'version':
