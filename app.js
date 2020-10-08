@@ -11,6 +11,7 @@ try {
 }
 const config = tempConfig;
 const appLocation = (config) ? config.appLocation : null;
+const winnebago = (config) ? config.winnebago : null;
 const mira = (config) ? config.mira : null;
 const eclipse = (config) ? config.eclipse : null;
 const miraAndEclipse = (config) ? config.miraAndEclipse : null;
@@ -63,6 +64,13 @@ async function decipherInput(input) {
     }
 
     switch (input) {
+        case 'winnebago':
+        case 'win':
+        case 'wgo':
+        case 'w':
+            app = 'winnebago';
+            console.log('preparing', 'winnebago'.blue, command.cyan + '...');
+            break;
         case 'mira':
         case 'm':
             app = 'mira';
@@ -98,6 +106,10 @@ async function decipherInput(input) {
                 help: {
                     command: "help | h",
                     description: "list of all commands available"
+                },
+                winnebago: {
+                    command: "winnebago | wgo | win | w",
+                    description: `build out the mira app from your "${winnebago}" folder`
                 },
                 mira: {
                     command: "mira | m",
@@ -193,7 +205,14 @@ async function decipherInput(input) {
                 cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
                 ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
             });
-            process.chdir(`../${mira}/client`);
+            process.chdir(`../${winnebago}/client`);
+            console.table({
+                location: process.cwd(),
+                node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
+                cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
+                ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
+            });
+            process.chdir(`../../${mira}/client`);
             console.table({
                 location: process.cwd(),
                 node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
@@ -307,14 +326,19 @@ async function startAction(app, action, currentApp, displayName = null) {
             data = cp.execSync('cordova build android --release');
             const dataArray = data.toString().replace(/\r/g, '').replace(/\n/g, '').split('\t').filter(string => string !== '')
             let apkPath = undefined;
+            let unsignedApkPath = undefined;
             dataArray.forEach(string => {
                 if (string.indexOf('app-release.apk') !== -1) apkPath = string.replace('\\app-release.apk', '');
+                if (string.indexOf('app-release-unsigned.apk') !== -1) unsignedApkPath = string.replace('\\app-release-unsigned.apk', '');
             });
             if (apkPath) {
                 console.log('apk path:'.gray, apkPath.cyan)
                 cp.exec(`explorer ${apkPath}`);
+            } else if (unsignedApkPath) {
+                console.log('release apk path not found'.red)
+                cp.exec(`explorer ${unsignedApkPath}`);
             } else {
-                console.log('apk path not found'.red)
+                console.log('no apk path not found'.red)
             }
         }
         if (action === 'serve') {
@@ -343,6 +367,9 @@ async function startAction(app, action, currentApp, displayName = null) {
             hour12: true
         });
         switch (currentApp) {
+            case winnebago:
+                console.log('winnebago'.blue, action.cyan, 'finished with no errors'.green, 'at', finishTimeFormatted.magenta);
+                break;
             case mira:
                 console.log('mira'.blue, action.cyan, 'finished with no errors'.green, 'at', finishTimeFormatted.magenta);
                 break;
@@ -379,6 +406,14 @@ async function prompt(message) {
 }
 
 async function setup() {
+    const getWinnebagoName = () => {
+        return new Promise((resolve, reject) => {
+            interface.question(`${'What is the name of your'.blue} ${'winnebago'.yellow} ${'repository?'.blue}\n`, async (userInput) => {
+                userSetup.winnebago = userInput;
+                resolve();
+            })
+        })
+    }
     const getMiraName = () => {
         return new Promise((resolve, reject) => {
             interface.question(`${'What is the name of your'.blue} ${'mira'.yellow} ${'repository?'.blue}\n`, async (userInput) => {
@@ -403,6 +438,7 @@ async function setup() {
             })
         })
     }
+    await getWinnebagoName();
     await getMiraName();
     await getEclipseName();
     await getMiraEclipseName();
@@ -412,6 +448,7 @@ async function setup() {
     if (!userSetup.colors) colors.disable()
     fs.writeFileSync('./config.json', JSON.stringify({
         "appLocation": path.basename(process.cwd()),
+        "winnebago": userSetup.winnebago,
         "mira": userSetup.mira,
         "eclipse": userSetup.eclipse,
         "miraAndEclipse": userSetup.miraAndEclipse,
@@ -465,7 +502,9 @@ function getCmd() {
 
 function getAppPath(app) {
     let appPath = null;
-    if (app === 'mira') {
+    if (app === 'winnebago') {
+        appPath = winnebago;
+    } else if (app === 'mira') {
         appPath = mira;
     } else if (app === 'eclipse') {
         appPath = eclipse;
