@@ -21,6 +21,9 @@ const interface = readline.createInterface({
 
 async function start() {
     if (!config.colors) colors.disable();
+    colors.setTheme({
+        favorite: [config.favorite]
+    });
     await question().then(async (input) => {
         await decipherInput(input).then(async (results) => {
             if ((results[1] === 'release' || results[1] === 'serve' || results[1] === 'build') && results[0] !== null) processInput(results[0], results[1]);
@@ -31,7 +34,7 @@ async function start() {
 
 async function question() {
     const question = await new Promise((resolve, reject) => {
-        interface.question("What app(s) would you like to build? \n".yellow.underline, async (userInput) => {
+        interface.question("What app(s) would you like to build? \n".favorite.underline, async (userInput) => {
             const input = userInput.toLowerCase();
             resolve(input)
         })
@@ -147,6 +150,10 @@ async function decipherInput(input) {
                     command: "colors | color",
                     description: "updates your colors variable in your config.json"
                 },
+                favorite: {
+                    command: "favorite | fav",
+                    description: "updates your favorite variable in your config.json"
+                },
                 clear: {
                     command: "clear | cls | c",
                     description: "clear the console"
@@ -215,6 +222,16 @@ async function decipherInput(input) {
             await getColors();
             userSetup.colors ? colors.enable() : colors.disable();
             console.log('your colors setting is now set to:'.green, userSetup.colors.toString().magenta);
+            terminateCli();
+            start();
+            break;
+        case 'favorite':
+        case 'fav':
+            await getFavorite();
+            colors.setTheme({
+                favorite: [userSetup.favorite]
+            });
+            console.log('your favorite setting is now set'.favorite);
             terminateCli();
             start();
             break;
@@ -380,6 +397,7 @@ async function setup() {
     await getEclipseName();
     await getMiraEclipseName();
     await getCleanView(true);
+    await getFavorite(true);
     await getColors(true);
     if (!userSetup.colors) colors.disable()
     fs.writeFileSync('./config.json', JSON.stringify({
@@ -388,7 +406,8 @@ async function setup() {
         "eclipse": userSetup.eclipse,
         "miraAndEclipse": userSetup.miraAndEclipse,
         "cleanView": userSetup.cleanView,
-        "colors": userSetup.colors
+        "favorite": userSetup.favorite,
+        "colors": userSetup.colors,
     }, null, '\t'));
     console.log('\nyou have successfully updated your config.json'.green);
     terminateCli();
@@ -405,7 +424,6 @@ function getCmd() {
         interface.question(`What would you like to run in the command prompt?\n`.magenta.underline, userInput => {
             const input = userInput.toLowerCase();
             if (input === 'exit' || input === 'stop' || input === 'quit' || input === 'close' || input === 'kill' || input === 'end') {
-                console.log('exiting')
                 start();
                 return;
             } else if (input === 'cwd') {
@@ -418,7 +436,7 @@ function getCmd() {
                 return;
             } else if (input === 'help' || input === 'h') {
                 console.table({
-                    exit: 'exit | stop | quit'
+                    exit: 'exit | stop | quit | close | kill | end'
                 });
                 getCmd();
                 return;
@@ -479,6 +497,73 @@ function getColors(setup = false) {
                 fs.readFile('./config.json', function (error, data) {
                     let json = JSON.parse(data)
                     json.colors = userSetup.colors;
+                    fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        })
+    })
+}
+
+function getFavorite(setup = false) {
+    return new Promise((resolve, reject) => {
+        interface.question(`Enter a favorite ${'color'.yellow}\n${'options include:'.blue} ${'cyan'.cyan}, ${'blue'.blue}, ${'green'.green}, ${'red'.red}, ${'white'.white}, ${'magenta'.magenta}, ${'random'.random}, ${'yellow'.yellow}, ${'grey'.grey}, ${'zebra'.zebra}, ${'rainbow'.rainbow}, ${'america'.america}, or ${'trap'.trap} (trap)\n`.blue, userInput => {
+            let input;
+            console.log('userInput.toLowerCase()', userInput.toLowerCase())
+            switch (userInput.toLowerCase()) {
+                case 'trap':
+                    input = 'trap';
+                    break;
+                case 'cyan':
+                    input = 'cyan';
+                    break;
+                case 'blue':
+                    input = 'blue';
+                    break;
+                case 'green':
+                    input = 'green';
+                    break;
+                case 'red':
+                    input = 'red';
+                    break;
+                case 'white':
+                    input = 'white';
+                    break;
+                case 'magenta':
+                    input = 'magenta';
+                    break;
+                case 'random':
+                    input = 'random';
+                    break;
+                case 'yellow':
+                    input = 'yellow';
+                    break;
+                case 'gray':
+                case 'grey':
+                    input = 'grey';
+                    break;
+                case 'zebra':
+                    input = 'zebra';
+                    break;
+                case 'rainbow':
+                    input = 'rainbow';
+                    break;
+                case 'america':
+                    input = 'america';
+                    break;
+                default:
+                    input = 'yellow';
+                    break;
+            }
+            console.log('input', input)
+            userSetup.favorite = input;
+            if (!setup) {
+                if (path.basename(process.cwd()) !== config.appLocation) process.chdir(`../${config.appLocation}`);
+                fs.readFile('./config.json', function (error, data) {
+                    let json = JSON.parse(data)
+                    json.favorite = userSetup.favorite;
                     fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
                     resolve();
                 });
