@@ -1,4 +1,4 @@
-require('colors');
+const colors = require('colors');
 const cp = require('child_process');
 const fs = require('fs');
 const readline = require('readline');
@@ -20,6 +20,7 @@ const interface = readline.createInterface({
 });
 
 async function start() {
+    if (!config.colors) colors.disable();
     await question().then(async (input) => {
         await decipherInput(input).then(async (results) => {
             if ((results[1] === 'release' || results[1] === 'serve' || results[1] === 'build') && results[0] !== null) processInput(results[0], results[1]);
@@ -142,6 +143,10 @@ async function decipherInput(input) {
                     command: "clean | cleanview | clean view",
                     description: "updates your cleanView variable in your config.json"
                 },
+                colors: {
+                    command: "colors | color",
+                    description: "updates your colors variable in your config.json"
+                },
                 clear: {
                     command: "clear | cls | c",
                     description: "clear the console"
@@ -201,7 +206,15 @@ async function decipherInput(input) {
         case 'cleanview':
         case 'clean view':
             await getCleanView();
-            console.log('your cleanView setting is now to:'.green, userSetup.cleanView.toString().magenta);
+            console.log('your cleanView setting is now set to:'.green, userSetup.cleanView.toString().magenta);
+            terminateCli();
+            start();
+            break;
+        case 'color':
+        case 'colors':
+            await getColors();
+            userSetup.colors ? colors.enable() : colors.disable();
+            console.log('your colors setting is now set to:'.green, userSetup.colors.toString().magenta);
             terminateCli();
             start();
             break;
@@ -367,12 +380,15 @@ async function setup() {
     await getEclipseName();
     await getMiraEclipseName();
     await getCleanView(true);
+    await getColors(true);
+    if (!userSetup.colors) colors.disable()
     fs.writeFileSync('./config.json', JSON.stringify({
         "appLocation": path.basename(process.cwd()),
         "mira": userSetup.mira,
         "eclipse": userSetup.eclipse,
         "miraAndEclipse": userSetup.miraAndEclipse,
-        "cleanView": userSetup.cleanView
+        "cleanView": userSetup.cleanView,
+        "colors": userSetup.colors
     }, null, '\t'));
     console.log('\nyou have successfully updated your config.json'.green);
     terminateCli();
@@ -440,9 +456,29 @@ function getCleanView(setup = false) {
             if (!setup) {
                 if (path.basename(process.cwd()) !== config.appLocation) process.chdir(`../${config.appLocation}`);
                 fs.readFile('./config.json', function (error, data) {
-                    console.log('cwd', process.cwd())
                     let json = JSON.parse(data)
                     json.cleanView = userSetup.cleanView;
+                    fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        })
+    })
+}
+
+function getColors(setup = false) {
+    return new Promise((resolve, reject) => {
+        interface.question(`Would you like ${'color'.rainbow} ${'to be used when using this app?'.blue} ${'(y/n)'.magenta}\n`.blue, userInput => {
+            let input = true;
+            if (userInput.toLowerCase() === 'n' || userInput.toLowerCase() === 'no') input = false;
+            userSetup.colors = input;
+            if (!setup) {
+                if (path.basename(process.cwd()) !== config.appLocation) process.chdir(`../${config.appLocation}`);
+                fs.readFile('./config.json', function (error, data) {
+                    let json = JSON.parse(data)
+                    json.colors = userSetup.colors;
                     fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
                     resolve();
                 });
