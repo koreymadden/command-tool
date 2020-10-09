@@ -383,11 +383,14 @@ async function startAction(app, action, currentApp, displayName = null) {
         const activeBranchIndex = gitBranchArray.indexOf('*') + 1;
         console.log('branch used:'.gray, gitBranchArray[activeBranchIndex].cyan)
     } catch (error) {
-        const shortMessage = (error.message.toLowerCase().indexOf("no emulator images") !== -1) ?
+        const disconnectMessage = (error.message.toLowerCase().indexOf("no emulator images") !== -1) ?
             '\nplease make sure your mobile device is connected to your computer'.red :
-            ''
+            '';
+        const signatureMessage = (error.message.toLowerCase().indexOf("signatures do not match") !== -1) ?
+            '\ntry uninstalling the app before building'.red :
+            '';
         if (!config.cleanView) console.error(error);
-        console.log('error found'.red, shortMessage);
+        console.log('error found'.red, disconnectMessage, signatureMessage);
     }
 }
 
