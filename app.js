@@ -320,6 +320,18 @@ async function startAction(app, action, currentApp, displayName = null) {
             const appVariables = fs.readFileSync('./www/appVariables.js').toString();
             if (appVariables.indexOf('production = false') !== -1) {
                 console.warn('production is set to:'.yellow, 'false'.red);
+                const gitBranchArray = cp.execSync('git branch').toString().replace(/\n/g, ' ').split(' ').filter(string => string !== '');
+                const activeBranchIndex = gitBranchArray.indexOf('*') + 1;
+                if (gitBranchArray[activeBranchIndex].toLowerCase() === 'master') {
+                    const decision = await prompt(`${'Would you like to update the'.magenta} ${'production'.red} ${'variable to'.magenta} ${'true'.yellow} ${'(y/n)'.red}${'?\n'.magenta}`);
+                    if (decision) {
+                    let newAppVariables = appVariables.replace('production = false', 'production = true');
+                    fs.writeFileSync('./www/appVariables.js', newAppVariables);
+                    console.log('appVariables.js production variable updated'.green);
+                    } else {
+                        console.log('appVariables.js production variable not updated'.red);
+                    }
+                }
             } else if (appVariables.indexOf('production = true') !== -1) {
                 console.warn('production is set to:'.yellow, 'true'.red);
             }
