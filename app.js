@@ -318,6 +318,18 @@ async function startAction(app, action, currentApp, displayName = null) {
         if (action === 'build') data = cp.execSync('cordova run android');
         if (action === 'release') {
             const appVariables = fs.readFileSync('./www/appVariables.js').toString();
+            const configXml = fs.readFileSync('./config.xml').toString();
+            const splitConfigXml = configXml.split(' ');
+            let androidVersionCode;
+            splitConfigXml.forEach(string => {
+                if (string.indexOf('android-versionCode=') !== -1) androidVersionCode = string.split('"')[1];
+            });
+            console.log('android-versionCode:'.grey, androidVersionCode.cyan)
+            if (displayName === 'mira' && androidVersionCode.length !== 10) {
+                console.error('version code length is incorrect, please check android-versionCode in the config.xml file'.red)
+            } else if (displayName === 'eclipse' && androidVersionCode.length !== 8) {
+                console.error('version code length is incorrect, please check android-versionCode in the config.xml file'.red)
+            }
             if (appVariables.indexOf('production = false') !== -1) {
                 console.warn('production is set to:'.yellow, 'false'.red);
                 const gitBranchArray = cp.execSync('git branch').toString().replace(/\n/g, ' ').split(' ').filter(string => string !== '');
