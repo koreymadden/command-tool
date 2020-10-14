@@ -401,8 +401,11 @@ async function startAction(app, action, currentApp, displayName = null) {
         const signatureMessage = (error.message.toLowerCase().indexOf("signatures do not match") !== -1) ?
             '\ntry uninstalling the app before building'.red :
             '';
+        const downgradeMessage = (error.message.toLowerCase().indexOf("install_failed_version_downgrade") !== -1) ?
+            '\ntry uninstalling the app before building again'.red :
+            '';
         if (!config.cleanView) console.error(error);
-        console.log('error found'.red, disconnectMessage, signatureMessage);
+        console.log('error found'.red, disconnectMessage, signatureMessage, downgradeMessage);
     }
 }
 
