@@ -1,4 +1,4 @@
-require('colors');
+const colors = require('colors');
 const cp = require('child_process');
 const fs = require('fs');
 const readline = require('readline');
@@ -10,6 +10,8 @@ try {
     console.log('please configure your config.json file by completing the prompts...\n'.yellow.underline);
 }
 const config = tempConfig;
+const appLocation = (config) ? config.appLocation : null;
+const winnebago = (config) ? config.winnebago : null;
 const mira = (config) ? config.mira : null;
 const eclipse = (config) ? config.eclipse : null;
 const miraAndEclipse = (config) ? config.miraAndEclipse : null;
@@ -20,6 +22,10 @@ const interface = readline.createInterface({
 });
 
 async function start() {
+    if (!config.colors) colors.disable();
+    colors.setTheme({
+        favorite: [config.favorite]
+    });
     await question().then(async (input) => {
         await decipherInput(input).then(async (results) => {
             if ((results[1] === 'release' || results[1] === 'serve' || results[1] === 'build') && results[0] !== null) processInput(results[0], results[1]);
@@ -30,7 +36,7 @@ async function start() {
 
 async function question() {
     const question = await new Promise((resolve, reject) => {
-        interface.question("What app(s) would you like to build? \n".yellow.underline, async (userInput) => {
+        interface.question("What app(s) would you like to build? \n".favorite.underline, async (userInput) => {
             const input = userInput.toLowerCase();
             resolve(input)
         })
@@ -58,6 +64,13 @@ async function decipherInput(input) {
     }
 
     switch (input) {
+        case 'winnebago':
+        case 'win':
+        case 'wgo':
+        case 'w':
+            app = 'winnebago';
+            console.log('preparing', 'winnebago'.blue, command.cyan + '...');
+            break;
         case 'mira':
         case 'm':
             app = 'mira';
@@ -93,6 +106,10 @@ async function decipherInput(input) {
                 help: {
                     command: "help | h",
                     description: "list of all commands available"
+                },
+                winnebago: {
+                    command: "winnebago | wgo | win | w",
+                    description: `build out the mira app from your "${winnebago}" folder`
                 },
                 mira: {
                     command: "mira | m",
@@ -142,6 +159,14 @@ async function decipherInput(input) {
                     command: "clean | cleanview | clean view",
                     description: "updates your cleanView variable in your config.json"
                 },
+                colors: {
+                    command: "colors | color",
+                    description: "updates your colors variable in your config.json"
+                },
+                favorite: {
+                    command: "favorite | fav",
+                    description: "updates your favorite variable in your config.json"
+                },
                 clear: {
                     command: "clear | cls | c",
                     description: "clear the console"
@@ -160,6 +185,15 @@ async function decipherInput(input) {
             break;
         case 'config':
             console.table(config);
+            let cwd = process.cwd()
+            let curDir = process.cwd().split('\\').slice(-1)[0];
+            if (curDir === miraAndEclipse && miraAndEclipse !== appLocation) {
+                process.chdir(`../${appLocation}`);
+            } else if (curDir === 'client') {
+                process.chdir(`../../${appLocation}`);
+            }
+            cp.exec(`explorer ${cwd}`)
+            if (appLocation !== miraAndEclipse) process.chdir(`../${miraAndEclipse}`);
             start();
             break;
         case 'version':
@@ -171,7 +205,14 @@ async function decipherInput(input) {
                 cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
                 ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
             });
-            process.chdir(`../${mira}/client`);
+            process.chdir(`../${winnebago}/client`);
+            console.table({
+                location: process.cwd(),
+                node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
+                cordova: cp.execSync('cordova -v').toString().replace('\r', '').replace('\n', ''),
+                ionic: cp.execSync('ionic -v').toString().replace('\r', '').replace('\n', ''),
+            });
+            process.chdir(`../../${mira}/client`);
             console.table({
                 location: process.cwd(),
                 node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
@@ -201,7 +242,25 @@ async function decipherInput(input) {
         case 'cleanview':
         case 'clean view':
             await getCleanView();
-            console.log('your cleanView setting is now to:'.green, userSetup.cleanView.toString().magenta);
+            console.log('your cleanView setting is now set to:'.green, userSetup.cleanView.toString().magenta);
+            terminateCli();
+            start();
+            break;
+        case 'color':
+        case 'colors':
+            await getColors();
+            userSetup.colors ? colors.enable() : colors.disable();
+            console.log('your colors setting is now set to:'.green, userSetup.colors.toString().magenta);
+            terminateCli();
+            start();
+            break;
+        case 'favorite':
+        case 'fav':
+            await getFavorite();
+            colors.setTheme({
+                favorite: [userSetup.favorite]
+            });
+            console.log('your favorite setting is now set'.favorite);
             terminateCli();
             start();
             break;
@@ -258,17 +317,52 @@ async function startAction(app, action, currentApp, displayName = null) {
         let data = null;
         if (action === 'build') data = cp.execSync('cordova run android');
         if (action === 'release') {
+            const appVariables = fs.readFileSync('./www/appVariables.js').toString();
+            const configXml = fs.readFileSync('./config.xml').toString();
+            const splitConfigXml = configXml.split(' ');
+            let androidVersionCode;
+            splitConfigXml.forEach(string => {
+                if (string.indexOf('android-versionCode=') !== -1) androidVersionCode = string.split('"')[1];
+            });
+            console.log('android-versionCode:'.grey, androidVersionCode.cyan)
+            if (displayName === 'mira' && androidVersionCode.length !== 10) {
+                console.error('version code length is incorrect, please check android-versionCode in the config.xml file'.red)
+            } else if (displayName === 'eclipse' && androidVersionCode.length !== 8) {
+                console.error('version code length is incorrect, please check android-versionCode in the config.xml file'.red)
+            }
+            if (appVariables.indexOf('production = false') !== -1) {
+                console.warn('production is set to:'.yellow, 'false'.red);
+                const gitBranchArray = cp.execSync('git branch').toString().replace(/\n/g, ' ').split(' ').filter(string => string !== '');
+                const activeBranchIndex = gitBranchArray.indexOf('*') + 1;
+                if (gitBranchArray[activeBranchIndex].toLowerCase() === 'master') {
+                    const decision = await prompt(`${'Would you like to update the'.magenta} ${'production'.red} ${'variable to'.magenta} ${'true'.yellow} ${'(y/n)'.red}${'?\n'.magenta}`);
+                    if (decision) {
+                    let newAppVariables = appVariables.replace('production = false', 'production = true');
+                    fs.writeFileSync('./www/appVariables.js', newAppVariables);
+                    console.log('appVariables.js production variable updated'.green);
+                    } else {
+                        console.log('appVariables.js production variable not updated'.red);
+                    }
+                }
+            } else if (appVariables.indexOf('production = true') !== -1) {
+                console.warn('production is set to:'.yellow, 'true'.red);
+            }
             data = cp.execSync('cordova build android --release');
             const dataArray = data.toString().replace(/\r/g, '').replace(/\n/g, '').split('\t').filter(string => string !== '')
             let apkPath = undefined;
+            let unsignedApkPath = undefined;
             dataArray.forEach(string => {
                 if (string.indexOf('app-release.apk') !== -1) apkPath = string.replace('\\app-release.apk', '');
+                if (string.indexOf('app-release-unsigned.apk') !== -1) unsignedApkPath = string.replace('\\app-release-unsigned.apk', '');
             });
             if (apkPath) {
                 console.log('apk path:'.gray, apkPath.cyan)
                 cp.exec(`explorer ${apkPath}`);
+            } else if (unsignedApkPath) {
+                console.log('release apk path not found'.red)
+                cp.exec(`explorer ${unsignedApkPath}`);
             } else {
-                console.log('apk path not found'.red)
+                console.log('no apk path not found'.red)
             }
         }
         if (action === 'serve') {
@@ -297,6 +391,9 @@ async function startAction(app, action, currentApp, displayName = null) {
             hour12: true
         });
         switch (currentApp) {
+            case winnebago:
+                console.log('winnebago'.blue, action.cyan, 'finished with no errors'.green, 'at', finishTimeFormatted.magenta);
+                break;
             case mira:
                 console.log('mira'.blue, action.cyan, 'finished with no errors'.green, 'at', finishTimeFormatted.magenta);
                 break;
@@ -310,11 +407,17 @@ async function startAction(app, action, currentApp, displayName = null) {
         const activeBranchIndex = gitBranchArray.indexOf('*') + 1;
         console.log('branch used:'.gray, gitBranchArray[activeBranchIndex].cyan)
     } catch (error) {
-        const shortMessage = (error.message.toLowerCase().indexOf("no emulator images") !== -1) ?
+        const disconnectMessage = (error.message.toLowerCase().indexOf("no emulator images") !== -1) ?
             '\nplease make sure your mobile device is connected to your computer'.red :
-            ''
+            '';
+        const signatureMessage = (error.message.toLowerCase().indexOf("signatures do not match") !== -1) ?
+            '\ntry uninstalling the app before building'.red :
+            '';
+        const downgradeMessage = (error.message.toLowerCase().indexOf("install_failed_version_downgrade") !== -1) ?
+            '\ntry uninstalling the app before building again'.red :
+            '';
         if (!config.cleanView) console.error(error);
-        console.log('error found'.red, shortMessage);
+        console.log('error found'.red, disconnectMessage, signatureMessage, downgradeMessage);
     }
 }
 
@@ -333,6 +436,14 @@ async function prompt(message) {
 }
 
 async function setup() {
+    const getWinnebagoName = () => {
+        return new Promise((resolve, reject) => {
+            interface.question(`${'What is the name of your'.blue} ${'winnebago'.yellow} ${'repository?'.blue}\n`, async (userInput) => {
+                userSetup.winnebago = userInput;
+                resolve();
+            })
+        })
+    }
     const getMiraName = () => {
         return new Promise((resolve, reject) => {
             interface.question(`${'What is the name of your'.blue} ${'mira'.yellow} ${'repository?'.blue}\n`, async (userInput) => {
@@ -357,16 +468,23 @@ async function setup() {
             })
         })
     }
+    await getWinnebagoName();
     await getMiraName();
     await getEclipseName();
     await getMiraEclipseName();
     await getCleanView(true);
+    await getFavorite(true);
+    await getColors(true);
+    if (!userSetup.colors) colors.disable()
     fs.writeFileSync('./config.json', JSON.stringify({
         "appLocation": path.basename(process.cwd()),
+        "winnebago": userSetup.winnebago,
         "mira": userSetup.mira,
         "eclipse": userSetup.eclipse,
         "miraAndEclipse": userSetup.miraAndEclipse,
-        "cleanView": userSetup.cleanView
+        "cleanView": userSetup.cleanView,
+        "favorite": userSetup.favorite,
+        "colors": userSetup.colors,
     }, null, '\t'));
     console.log('\nyou have successfully updated your config.json'.green);
     terminateCli();
@@ -383,7 +501,6 @@ function getCmd() {
         interface.question(`What would you like to run in the command prompt?\n`.magenta.underline, userInput => {
             const input = userInput.toLowerCase();
             if (input === 'exit' || input === 'stop' || input === 'quit' || input === 'close' || input === 'kill' || input === 'end') {
-                console.log('exiting')
                 start();
                 return;
             } else if (input === 'cwd') {
@@ -396,7 +513,7 @@ function getCmd() {
                 return;
             } else if (input === 'help' || input === 'h') {
                 console.table({
-                    exit: 'exit | stop | quit'
+                    exit: 'exit | stop | quit | close | kill | end'
                 });
                 getCmd();
                 return;
@@ -415,7 +532,9 @@ function getCmd() {
 
 function getAppPath(app) {
     let appPath = null;
-    if (app === 'mira') {
+    if (app === 'winnebago') {
+        appPath = winnebago;
+    } else if (app === 'mira') {
         appPath = mira;
     } else if (app === 'eclipse') {
         appPath = eclipse;
@@ -434,9 +553,96 @@ function getCleanView(setup = false) {
             if (!setup) {
                 if (path.basename(process.cwd()) !== config.appLocation) process.chdir(`../${config.appLocation}`);
                 fs.readFile('./config.json', function (error, data) {
-                    console.log('cwd', process.cwd())
                     let json = JSON.parse(data)
                     json.cleanView = userSetup.cleanView;
+                    fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        })
+    })
+}
+
+function getColors(setup = false) {
+    return new Promise((resolve, reject) => {
+        interface.question(`Would you like ${'color'.rainbow} ${'to be used when using this app?'.blue} ${'(y/n)'.magenta}\n`.blue, userInput => {
+            let input = true;
+            if (userInput.toLowerCase() === 'n' || userInput.toLowerCase() === 'no') input = false;
+            userSetup.colors = input;
+            if (!setup) {
+                if (path.basename(process.cwd()) !== config.appLocation) process.chdir(`../${config.appLocation}`);
+                fs.readFile('./config.json', function (error, data) {
+                    let json = JSON.parse(data)
+                    json.colors = userSetup.colors;
+                    fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        })
+    })
+}
+
+function getFavorite(setup = false) {
+    return new Promise((resolve, reject) => {
+        interface.question(`Enter a favorite ${'color'.yellow}\n${'options include:'.blue} ${'cyan'.cyan}, ${'blue'.blue}, ${'green'.green}, ${'red'.red}, ${'white'.white}, ${'magenta'.magenta}, ${'random'.random}, ${'yellow'.yellow}, ${'grey'.grey}, ${'zebra'.zebra}, ${'rainbow'.rainbow}, ${'america'.america}, or ${'trap'.trap} (trap)\n`.blue, userInput => {
+            let input;
+            console.log('userInput.toLowerCase()', userInput.toLowerCase())
+            switch (userInput.toLowerCase()) {
+                case 'trap':
+                    input = 'trap';
+                    break;
+                case 'cyan':
+                    input = 'cyan';
+                    break;
+                case 'blue':
+                    input = 'blue';
+                    break;
+                case 'green':
+                    input = 'green';
+                    break;
+                case 'red':
+                    input = 'red';
+                    break;
+                case 'white':
+                    input = 'white';
+                    break;
+                case 'magenta':
+                    input = 'magenta';
+                    break;
+                case 'random':
+                    input = 'random';
+                    break;
+                case 'yellow':
+                    input = 'yellow';
+                    break;
+                case 'gray':
+                case 'grey':
+                    input = 'grey';
+                    break;
+                case 'zebra':
+                    input = 'zebra';
+                    break;
+                case 'rainbow':
+                    input = 'rainbow';
+                    break;
+                case 'america':
+                    input = 'america';
+                    break;
+                default:
+                    input = 'yellow';
+                    break;
+            }
+            console.log('input', input)
+            userSetup.favorite = input;
+            if (!setup) {
+                if (path.basename(process.cwd()) !== config.appLocation) process.chdir(`../${config.appLocation}`);
+                fs.readFile('./config.json', function (error, data) {
+                    let json = JSON.parse(data)
+                    json.favorite = userSetup.favorite;
                     fs.writeFileSync("./config.json", JSON.stringify(json, null, '\t'));
                     resolve();
                 });
