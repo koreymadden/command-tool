@@ -24,7 +24,7 @@ const interface = readline.createInterface({
 async function start() {
     if (!config.colors) colors.disable();
     colors.setTheme({
-        favorite: [config.favorite]
+        favorite: config.favorite
     });
     await question().then(async (input) => {
         await decipherInput(input).then(async (results) => {
@@ -258,7 +258,7 @@ async function decipherInput(input) {
         case 'fav':
             await getFavorite();
             colors.setTheme({
-                favorite: [userSetup.favorite]
+                favorite: userSetup.favorite
             });
             console.log('your favorite setting is now set'.favorite);
             terminateCli();
@@ -588,55 +588,59 @@ function getColors(setup = false) {
 
 function getFavorite(setup = false) {
     return new Promise((resolve, reject) => {
-        interface.question(`Enter a favorite ${'color'.yellow}\n${'options include:'.blue} ${'cyan'.cyan}, ${'blue'.blue}, ${'green'.green}, ${'red'.red}, ${'white'.white}, ${'magenta'.magenta}, ${'random'.random}, ${'yellow'.yellow}, ${'grey'.grey}, ${'zebra'.zebra}, ${'rainbow'.rainbow}, ${'america'.america}, or ${'trap'.trap} (trap)\n`.blue, userInput => {
+        interface.question(`Enter a favorite ${'color'.yellow}\n${'options include:'.blue} ${'cyan'.cyan}, ${'blue'.blue}, ${'green'.green}, ${'red'.red}, ${'white'.white}, ${'magenta'.magenta}, ${'random'.random}, ${'yellow'.yellow}, ${'grey'.grey}, ${'zebra'.zebra}, ${'rainbow'.rainbow}, ${'america'.america}, ${'supreme'.white.bgRed}, ${'firefly'.white.bgGreen}, or ${'trap'.trap} (trap)\n`.blue, userInput => {
             let input;
-            console.log('userInput.toLowerCase()', userInput.toLowerCase())
             switch (userInput.toLowerCase()) {
                 case 'trap':
-                    input = 'trap';
+                    input = ['trap'];
                     break;
                 case 'cyan':
-                    input = 'cyan';
+                    input = ['cyan'];
                     break;
                 case 'blue':
-                    input = 'blue';
+                    input = ['blue'];
                     break;
                 case 'green':
-                    input = 'green';
+                    input = ['green'];
                     break;
                 case 'red':
-                    input = 'red';
+                    input = ['red'];
                     break;
                 case 'white':
-                    input = 'white';
+                    input = ['white'];
                     break;
                 case 'magenta':
-                    input = 'magenta';
+                    input = ['magenta'];
                     break;
                 case 'random':
-                    input = 'random';
+                    input = ['random'];
                     break;
                 case 'yellow':
-                    input = 'yellow';
+                    input = ['yellow'];
                     break;
                 case 'gray':
                 case 'grey':
-                    input = 'grey';
+                    input = ['grey'];
                     break;
                 case 'zebra':
-                    input = 'zebra';
+                    input = ['zebra'];
                     break;
                 case 'rainbow':
-                    input = 'rainbow';
+                    input = ['rainbow'];
                     break;
                 case 'america':
-                    input = 'america';
+                    input = ['america'];
+                    break;
+                case 'supreme':
+                    input = ['white', 'bgRed'];
+                    break;
+                case 'firefly':
+                    input = ['white', 'bgGreen'];
                     break;
                 default:
-                    input = 'yellow';
+                    input = ['yellow'];
                     break;
             }
-            console.log('input', input)
             userSetup.favorite = input;
             if (!setup) {
                 if (path.basename(process.cwd()) !== config.appLocation) process.chdir(`../${config.appLocation}`);
