@@ -198,7 +198,7 @@ async function decipherInput(input) {
             break;
         case 'version':
         case 'v':
-            console.log('app version:', 'v1.0.1'.green);
+            console.log('app version:', 'v1.0.2'.green);
             console.table({
                 location: process.cwd(),
                 node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
@@ -312,6 +312,11 @@ async function startAction(app, action, currentApp, displayName = null) {
             second: 'numeric',
             hour12: true
         });
+        // check status of branch
+        const gitStatus = cp.execSync('git status').toString().toLowerCase();
+        if (gitStatus.indexOf('your branch is behind') > -1) {
+            console.warn('your branch is behind, please update your local branch'.yellow);
+        }
         console.log(displayName.blue, action.cyan, 'starting in', process.cwd().cyan, 'at', startTimeFormatted.magenta);
         // run command
         let data = null;
