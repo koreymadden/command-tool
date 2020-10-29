@@ -24,7 +24,7 @@ const interface = readline.createInterface({
 async function start() {
     if (!config.colors) colors.disable();
     colors.setTheme({
-        favorite: [config.favorite]
+        favorite: config.favorite
     });
     await question().then(async (input) => {
         await decipherInput(input).then(async (results) => {
@@ -198,7 +198,7 @@ async function decipherInput(input) {
             break;
         case 'version':
         case 'v':
-            console.log('app version:', 'v1.0.1'.green);
+            console.log('app version:', 'v1.0.2'.green);
             console.table({
                 location: process.cwd(),
                 node: cp.execSync('node -v').toString().replace('\r', '').replace('\n', ''),
@@ -258,7 +258,7 @@ async function decipherInput(input) {
         case 'fav':
             await getFavorite();
             colors.setTheme({
-                favorite: [userSetup.favorite]
+                favorite: userSetup.favorite
             });
             console.log('your favorite setting is now set'.favorite);
             terminateCli();
@@ -312,12 +312,29 @@ async function startAction(app, action, currentApp, displayName = null) {
             second: 'numeric',
             hour12: true
         });
+        // check status of branch
+        const gitStatus = cp.execSync('git status').toString().toLowerCase();
+        if (gitStatus.indexOf('your branch is behind') > -1) {
+            console.warn('your branch is behind, please update your local branch'.yellow);
+        }
         console.log(displayName.blue, action.cyan, 'starting in', process.cwd().cyan, 'at', startTimeFormatted.magenta);
         // run command
         let data = null;
         if (action === 'build') data = cp.execSync('cordova run android');
         if (action === 'release') {
             const appVariables = fs.readFileSync('./www/appVariables.js').toString();
+            const configXml = fs.readFileSync('./config.xml').toString();
+            const splitConfigXml = configXml.split(' ');
+            let androidVersionCode;
+            splitConfigXml.forEach(string => {
+                if (string.indexOf('android-versionCode=') !== -1) androidVersionCode = string.split('"')[1];
+            });
+            console.log('android-versionCode:'.grey, androidVersionCode.cyan)
+            if (displayName === 'mira' && androidVersionCode.length !== 10) {
+                console.error('version code length is incorrect, please check android-versionCode in the config.xml file'.red)
+            } else if (displayName === 'eclipse' && androidVersionCode.length !== 8) {
+                console.error('version code length is incorrect, please check android-versionCode in the config.xml file'.red)
+            }
             if (appVariables.indexOf('production = false') !== -1) {
                 console.warn('production is set to:'.yellow, 'false'.red);
                 const gitBranchArray = cp.execSync('git branch').toString().replace(/\n/g, ' ').split(' ').filter(string => string !== '');
@@ -401,8 +418,11 @@ async function startAction(app, action, currentApp, displayName = null) {
         const signatureMessage = (error.message.toLowerCase().indexOf("signatures do not match") !== -1) ?
             '\ntry uninstalling the app before building'.red :
             '';
+        const downgradeMessage = (error.message.toLowerCase().indexOf("install_failed_version_downgrade") !== -1) ?
+            '\ntry uninstalling the app before building again'.red :
+            '';
         if (!config.cleanView) console.error(error);
-        console.log('error found'.red, disconnectMessage, signatureMessage);
+        console.log('error found'.red, disconnectMessage, signatureMessage, downgradeMessage);
     }
 }
 
@@ -573,55 +593,59 @@ function getColors(setup = false) {
 
 function getFavorite(setup = false) {
     return new Promise((resolve, reject) => {
-        interface.question(`Enter a favorite ${'color'.yellow}\n${'options include:'.blue} ${'cyan'.cyan}, ${'blue'.blue}, ${'green'.green}, ${'red'.red}, ${'white'.white}, ${'magenta'.magenta}, ${'random'.random}, ${'yellow'.yellow}, ${'grey'.grey}, ${'zebra'.zebra}, ${'rainbow'.rainbow}, ${'america'.america}, or ${'trap'.trap} (trap)\n`.blue, userInput => {
+        interface.question(`Enter a favorite ${'color'.yellow}\n${'options include:'.blue} ${'cyan'.cyan}, ${'blue'.blue}, ${'green'.green}, ${'red'.red}, ${'white'.white}, ${'magenta'.magenta}, ${'random'.random}, ${'yellow'.yellow}, ${'grey'.grey}, ${'zebra'.zebra}, ${'rainbow'.rainbow}, ${'america'.america}, ${'supreme'.white.bgRed}, ${'firefly'.white.bgGreen}, or ${'trap'.trap} (trap)\n`.blue, userInput => {
             let input;
-            console.log('userInput.toLowerCase()', userInput.toLowerCase())
             switch (userInput.toLowerCase()) {
                 case 'trap':
-                    input = 'trap';
+                    input = ['trap'];
                     break;
                 case 'cyan':
-                    input = 'cyan';
+                    input = ['cyan'];
                     break;
                 case 'blue':
-                    input = 'blue';
+                    input = ['blue'];
                     break;
                 case 'green':
-                    input = 'green';
+                    input = ['green'];
                     break;
                 case 'red':
-                    input = 'red';
+                    input = ['red'];
                     break;
                 case 'white':
-                    input = 'white';
+                    input = ['white'];
                     break;
                 case 'magenta':
-                    input = 'magenta';
+                    input = ['magenta'];
                     break;
                 case 'random':
-                    input = 'random';
+                    input = ['random'];
                     break;
                 case 'yellow':
-                    input = 'yellow';
+                    input = ['yellow'];
                     break;
                 case 'gray':
                 case 'grey':
-                    input = 'grey';
+                    input = ['grey'];
                     break;
                 case 'zebra':
-                    input = 'zebra';
+                    input = ['zebra'];
                     break;
                 case 'rainbow':
-                    input = 'rainbow';
+                    input = ['rainbow'];
                     break;
                 case 'america':
-                    input = 'america';
+                    input = ['america'];
+                    break;
+                case 'supreme':
+                    input = ['white', 'bgRed'];
+                    break;
+                case 'firefly':
+                    input = ['white', 'bgGreen'];
                     break;
                 default:
-                    input = 'yellow';
+                    input = ['yellow'];
                     break;
             }
-            console.log('input', input)
             userSetup.favorite = input;
             if (!setup) {
                 if (path.basename(process.cwd()) !== config.appLocation) process.chdir(`../${config.appLocation}`);
