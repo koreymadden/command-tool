@@ -1,6 +1,6 @@
 {
-  "user": 1,
-  "admin": 2,
-  "korey": 5,
-  "rob": 5
+  "audi": 10,
+  "volvo": 7,
+  "mercedes-benz": 8,
+  "bmw": 9
 }

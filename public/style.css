@@ -5,11 +5,17 @@ body {
     background-color: cadetblue;
     color: #E7EAEF;
     margin: 0;
+    font-size: 18px;
+}
+a {
+    color: inherit;
+    text-decoration: inherit;
 }
 .container {
     margin: 0 auto;
     max-width: 1000px;
     background-color: #333333;
+    min-height: min-content;
 }
 .flex {
     display: flex;
@@ -20,12 +26,22 @@ body {
     justify-content: center;
     margin-bottom: 10px;
 }
+.row:last-child {
+    margin-bottom: 0;
+}
 .row-item {
     background-color: cadetblue;
     width: 50px;
     height: 50px;
     border-radius: 50%;
     margin: 0 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+.left {
+    justify-content: start;
 }
 .spacer {
     width: 100%;
@@ -37,4 +53,26 @@ body {
 }
 h1, h2 {
     text-align: center;
+}
+form div select {
+    height: min-content;
+    margin-left: 10px;
+    width: 80px;
+    height: 30px;
+    border-radius: 30px;
+    text-align-last: center;
+    cursor: pointer;
+}
+form input[type="submit"] {
+    height: 30px;
+    width: 100px;
+    border-radius: 30px;
+    border: none;
+    cursor: pointer;
+}
+form {
+    min-width: 250px;
+    max-width: 300px;
+    margin: 0 auto;
+    padding: 0 10px;
 }
