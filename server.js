@@ -34,6 +34,13 @@ app.post('/update', (req, res) => {
     console.log(req.body)
     res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
+app.post('/delete', (req, res) => {
+    let { theName } = req.body;
+    let theScore = null;
+    writeToDatabaseAsync(theName, theScore)
+    console.log(req.body)
+    res.sendFile(path.join(__dirname, 'public', 'index.html'))
+})
 
 function writeToDatabaseAsync(key, val, file = './public/database.json') {
     console.log('key', key)

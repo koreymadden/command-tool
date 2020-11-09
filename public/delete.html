@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <a href="/index.html">
+        <h1>Delete</h1>
+    </a>
+    <div class="container">
+        <div class="spacer"></div>
+        <form id="update-form" action="http://localhost:5000/delete" method="POST">
+            <div class="row flex left">
+                <label for="theName">Choose a value:</label>
+                <select id="theName" name="theName">
+                    <option value="audi">Audi</option>
+                    <option value="bmw">BMW</option>
+                    <option value="mercedes-benz">Mercedes-Benz</option>
+                    <option value="volvo">Volvo</option>
+                </select>
+            </div>
+            <div class="row flex left">
+                <input type="submit" value="submit">
+            </div>
+        </form>
+        <div class="spacer"></div>
+    </div>
+</body>
+</html>
